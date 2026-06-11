@@ -1,0 +1,63 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-nexus-border;
+  }
+
+  body {
+    @apply bg-nexus-bg text-nexus-text font-sans antialiased;
+    background-image:
+      radial-gradient(ellipse at 20% 50%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, rgba(168, 85, 247, 0.06) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 80%, rgba(34, 211, 238, 0.04) 0%, transparent 50%);
+    min-height: 100vh;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-nexus-bg;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-nexus-border rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-nexus-accent/50;
+  }
+}
+
+@layer components {
+  .nexus-panel {
+    @apply bg-nexus-panel border border-nexus-border rounded-xl;
+  }
+
+  .nexus-btn-primary {
+    @apply px-6 py-2.5 bg-nexus-gradient text-white font-medium rounded-lg
+           hover:opacity-90 transition-all duration-200 shadow-lg shadow-nexus-accent/20;
+  }
+
+  .nexus-btn-secondary {
+    @apply px-6 py-2.5 bg-nexus-surface border border-nexus-border text-nexus-text
+           font-medium rounded-lg hover:border-nexus-accent/50 transition-all duration-200;
+  }
+
+  .nexus-input {
+    @apply w-full px-4 py-3 bg-nexus-surface border border-nexus-border rounded-lg
+           text-nexus-text placeholder-nexus-muted focus:outline-none focus:border-nexus-accent
+           focus:ring-1 focus:ring-nexus-accent/50 transition-all duration-200;
+  }
+
+  .gradient-text {
+    @apply bg-nexus-gradient bg-clip-text text-transparent;
+  }
+}

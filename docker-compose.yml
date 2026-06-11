@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: nexusrag-db
+    environment:
+      POSTGRES_USER: nexusrag
+      POSTGRES_PASSWORD: nexusrag_secret
+      POSTGRES_DB: nexusrag
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nexusrag"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: nexusrag-backend
+    ports:
+      - "5000:5000"
+    environment:
+      DATABASE_URL: postgresql://nexusrag:nexusrag_secret@db:5432/nexusrag
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-jwt-secret-change-in-production}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      SECRET_KEY: ${SECRET_KEY:-dev-flask-secret}
+      FRONTEND_URL: http://localhost:5173
+      UPLOAD_FOLDER: /app/uploads
+      EMBEDDING_MODEL: all-MiniLM-L6-v2
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - faiss_data:/app/faiss_index
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: nexusrag-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  faiss_data:
