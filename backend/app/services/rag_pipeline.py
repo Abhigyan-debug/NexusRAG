@@ -23,16 +23,21 @@ class RAGPipeline:
 
     def process_document(self, document: Document, filepath: str, api_key: str = None, model: str = None) -> Dict:
         try:
+            print("STEP 1: Extracting Text")
+
             document.status = "processing"
             db.session.commit()
 
             text, page_count, pages = extract_text(filepath, document.file_type)
             text = clean_text(text)
+
+            print("STEP 2: NLP Pipeline")
             language = detect_language(text)
             meta = extract_metadata(text, document.original_filename)
             sections = identify_sections(text)
             nlp_results = run_nlp_pipeline(text)
 
+            print("STEP 3: Metadata")
             document.page_count = page_count
             document.word_count = meta["word_count"]
             document.status = "chunking"
@@ -51,13 +56,25 @@ class RAGPipeline:
             db.session.add(metadata)
             db.session.commit()
 
+            print("STEP 4: Chunking")
             chunks_data = create_chunks(
-                text, document.id, pages, Config.CHUNK_SIZE, Config.CHUNK_OVERLAP
+                text,
+                document.id,
+                pages,
+                Config.CHUNK_SIZE,
+                Config.CHUNK_OVERLAP
             )
+
             document.status = "embedding"
 
+            print("STEP 5: Embeddings")
             chunk_texts = [c["content"] for c in chunks_data]
-            embeddings = generate_embeddings(chunk_texts, Config.EMBEDDING_MODEL)
+            embeddings = generate_embeddings(
+                chunk_texts,
+                Config.EMBEDDING_MODEL
+            )
+
+            print("STEP 6: Saving Chunks")
 
             chunk_ids = []
             for i, chunk_data in enumerate(chunks_data):
@@ -70,7 +87,9 @@ class RAGPipeline:
                 )
                 db.session.add(chunk)
                 db.session.flush()
+
                 chunk_ids.append(chunk.id)
+
                 emb = Embedding(
                     chunk_id=chunk.id,
                     model_name=Config.EMBEDDING_MODEL,
@@ -78,23 +97,57 @@ class RAGPipeline:
                 )
                 db.session.add(emb)
 
-            faiss_ids = self.vector_store.add_vectors(document.user_id, embeddings, chunk_ids)
+            print("STEP 7: FAISS")
+
+            faiss_ids = self.vector_store.add_vectors(
+                document.user_id,
+                embeddings,
+                chunk_ids
+            )
+
             for chunk_id, faiss_id in zip(chunk_ids, faiss_ids):
                 chunk = Chunk.query.get(chunk_id)
                 chunk.faiss_id = faiss_id
 
-            summary = self.llm.summarize(text[:8000], "executive", override_api_key=api_key, override_model=model)
+            print("STEP 8: Summary")
+
+            summary = self.llm.summarize(
+                text[:8000],
+                "executive",
+                override_api_key=api_key,
+                override_model=model
+            )
+
             metadata.summary = summary
 
-            self._build_knowledge_graph(document.user_id, document, nlp_results)
+            print("STEP 9: Knowledge Graph")
+
+            self._build_knowledge_graph(
+                document.user_id,
+                document,
+                nlp_results
+            )
+
+            print("STEP 10: Complete")
 
             document.status = "ready"
             db.session.commit()
-            return {"status": "success", "chunks": len(chunks_data), "pages": page_count}
+
+            return {
+                "status": "success",
+                "chunks": len(chunks_data),
+                "pages": page_count
+            }
 
         except Exception as e:
+            print("ERROR:", str(e))
+
+            import traceback
+            print(traceback.format_exc())
+
             document.status = "error"
             db.session.commit()
+
             raise e
 
     def _build_knowledge_graph(self, user_id: int, document: Document, nlp_results: Dict):
@@ -154,7 +207,7 @@ class RAGPipeline:
         conversation_history: List[Dict] = None,
         document_ids: List[int] = None,
         stream: bool = True,
-    ) -> Dict:
+    ) -> Generator:
         retrieved = self.retriever.retrieve(user_id, query, document_ids)
         citations = build_citations(retrieved)
         confidence = self.retriever.compute_confidence(retrieved)
