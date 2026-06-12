@@ -17,7 +17,7 @@ def create_app(config_class=Config):
     jwt.init_app(app)
     limiter.init_app(app)
 
-    CORS(app, origins=[app.config["FRONTEND_URL"], "http://localhost:5173", "http://localhost:3000"], supports_credentials=True)
+    CORS(app, supports_credentials=True)
 
     from app.routes.auth import auth_bp
     from app.routes.documents import documents_bp
