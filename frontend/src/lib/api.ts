@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: 'https://nexusrag-qk61.onrender.com/api',
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -86,7 +86,7 @@ export const chatApi = {
       } catch {}
     }
 
-    const response = await fetch('/api/chat', {
+    const response = await fetch( 'https://nexusrag-qk61.onrender.com/api/chat', {
       method: 'POST',
       headers,
       body: JSON.stringify({ ...data, stream: true }),
