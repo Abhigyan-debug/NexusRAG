@@ -37,6 +37,7 @@ def process_document_async(doc_id: int, filepath: str, app, api_key: str = None,
 @documents_bp.route("/upload", methods=["POST"])
 @jwt_required()
 def upload():
+    print("UPLOAD API HIT")
     user_id = int(get_jwt_identity())
     if "files" not in request.files and "file" not in request.files:
         return jsonify({"error": "No files provided"}), 400
