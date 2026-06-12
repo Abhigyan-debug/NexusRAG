@@ -22,6 +22,7 @@ class RAGPipeline:
         self.llm = LLMService()
 
     def process_document(self, document: Document, filepath: str, api_key: str = None, model: str = None) -> Dict:
+        print("PROCESS DOCUMENT STARTED")
         try:
             print("STEP 1: Extracting Text")
 

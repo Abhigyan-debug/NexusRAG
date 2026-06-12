@@ -13,6 +13,7 @@ from app.services.rag_pipeline import RAGPipeline
 
 documents_bp = Blueprint("documents", __name__, url_prefix="/api/documents")
 pipeline = RAGPipeline()
+print("RAG Pipeline Loaded")
 
 
 def process_document_async(doc_id: int, filepath: str, app, api_key: str = None, model: str = None):
