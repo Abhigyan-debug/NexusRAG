@@ -35,7 +35,6 @@ def process_document_async(doc_id: int, filepath: str, app, api_key: str = None,
 
 @documents_bp.route("/upload", methods=["POST"])
 @jwt_required()
-@limiter.limit("20 per hour")
 def upload():
     user_id = int(get_jwt_identity())
     if "files" not in request.files and "file" not in request.files:
