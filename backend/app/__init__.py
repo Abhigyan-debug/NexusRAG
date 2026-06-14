@@ -1,6 +1,6 @@
 import os
 import logging
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 
 from app.config import Config, log_startup_config
@@ -21,7 +21,33 @@ def create_app(config_class=Config):
     limiter.init_app(app)
 
     origins = _cors_origins(app)
-    CORS(app, origins=origins, supports_credentials=True)
+
+    CORS(
+        app,
+        resources={
+            r"/api/*": {
+                "origins": origins
+            }
+        },
+        supports_credentials=True,
+    )
+
+    @app.after_request
+    def after_request(response):
+        origin = request.headers.get("Origin")
+
+        if origin and origin in origins:
+            response.headers["Access-Control-Allow-Origin"] = origin
+
+        response.headers["Access-Control-Allow-Headers"] = (
+            "Content-Type, Authorization, X-Requested-With"
+        )
+        response.headers["Access-Control-Allow-Methods"] = (
+            "GET, POST, PUT, DELETE, OPTIONS"
+        )
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+
+        return response
 
     from app.routes.auth import auth_bp
     from app.routes.documents import documents_bp
@@ -38,8 +64,10 @@ def create_app(config_class=Config):
     @app.route("/")
     @app.route("/api/health")
     def health():
-        # Lightweight liveness probe — no DB, no ML imports.
-        return jsonify({"status": "healthy", "service": "NexusRAG API"}), 200
+        return jsonify({
+            "status": "healthy",
+            "service": "NexusRAG API"
+        }), 200
 
     log_startup_config(app)
 
@@ -49,22 +77,32 @@ def create_app(config_class=Config):
             _ensure_document_error_column()
             logger.info("Database initialized OK")
     except Exception as exc:
-        logger.error("Database init failed (API will still serve /api/health): %s", exc)
+        logger.error(
+            "Database init failed (API will still serve /api/health): %s",
+            exc
+        )
 
     return app
 
 
 def _cors_origins(app):
     origins = {
-        app.config.get("FRONTEND_URL", "http://localhost:5173"),
+        app.config.get(
+            "FRONTEND_URL",
+            "https://nexus-rag-jade.vercel.app"
+        ),
+        "https://nexus-rag-jade.vercel.app",
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "http://localhost:3000",
     }
+
     extra = os.getenv("CORS_ORIGINS", "")
     for origin in extra.split(","):
         origin = origin.strip()
         if origin:
             origins.add(origin)
+
     return list(origins)
 
 
@@ -74,11 +112,22 @@ def _ensure_document_error_column():
 
     try:
         inspector = inspect(db.engine)
+
         if "documents" not in inspector.get_table_names():
             return
-        columns = {c["name"] for c in inspector.get_columns("documents")}
+
+        columns = {
+            c["name"]
+            for c in inspector.get_columns("documents")
+        }
+
         if "error_message" not in columns:
             with db.engine.begin() as conn:
-                conn.execute(text("ALTER TABLE documents ADD COLUMN error_message TEXT"))
+                conn.execute(
+                    text(
+                        "ALTER TABLE documents "
+                        "ADD COLUMN error_message TEXT"
+                    )
+                )
     except Exception:
         pass
