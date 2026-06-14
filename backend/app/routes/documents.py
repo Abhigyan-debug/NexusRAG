@@ -103,15 +103,13 @@ def delete_document(doc_id):
     if not doc:
         return jsonify({"error": "Document not found"}), 404
 
-    from app.services.rag_pipeline import RAGPipeline
-    pipeline = RAGPipeline()
-
     upload_folder = current_app.config["UPLOAD_FOLDER"]
     filepath = os.path.join(upload_folder, doc.filename)
     if os.path.exists(filepath):
         os.remove(filepath)
 
-    pipeline.delete_document_vectors(user_id, doc)
+    from app.services.rag_pipeline import get_rag_pipeline
+    get_rag_pipeline().delete_document_vectors(user_id, doc)
     db.session.delete(doc)
     db.session.commit()
     return jsonify({"message": "Document deleted"})
@@ -125,8 +123,8 @@ def summarize_document(doc_id):
     if not doc:
         return jsonify({"error": "Document not found"}), 404
 
-    from app.services.rag_pipeline import RAGPipeline
-    pipeline = RAGPipeline()
+    from app.services.rag_pipeline import get_rag_pipeline
+    pipeline = get_rag_pipeline()
 
     data = request.get_json() or {}
     summary_type = data.get("type", "executive")

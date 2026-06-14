@@ -1,9 +1,12 @@
 import os
+import logging
 from flask import Flask, jsonify
 from flask_cors import CORS
 
-from app.config import Config
+from app.config import Config, log_startup_config
 from app.extensions import db, jwt, limiter
+
+logger = logging.getLogger("nexusrag.startup")
 
 
 def create_app(config_class=Config):
@@ -15,9 +18,10 @@ def create_app(config_class=Config):
 
     db.init_app(app)
     jwt.init_app(app)
-   # limiter.init_app(app)
+    limiter.init_app(app)
 
-    CORS(app, supports_credentials=True)
+    origins = _cors_origins(app)
+    CORS(app, origins=origins, supports_credentials=True)
 
     from app.routes.auth import auth_bp
     from app.routes.documents import documents_bp
@@ -31,19 +35,40 @@ def create_app(config_class=Config):
     app.register_blueprint(analytics_bp)
     app.register_blueprint(kg_bp)
 
+    @app.route("/")
     @app.route("/api/health")
     def health():
-        return jsonify({"status": "healthy", "service": "NexusRAG API"})
+        # Lightweight liveness probe — no DB, no ML imports.
+        return jsonify({"status": "healthy", "service": "NexusRAG API"}), 200
 
-    with app.app_context():
-        db.create_all()
-        _ensure_document_error_column()
+    log_startup_config(app)
+
+    try:
+        with app.app_context():
+            db.create_all()
+            _ensure_document_error_column()
+            logger.info("Database initialized OK")
+    except Exception as exc:
+        logger.error("Database init failed (API will still serve /api/health): %s", exc)
 
     return app
 
 
+def _cors_origins(app):
+    origins = {
+        app.config.get("FRONTEND_URL", "http://localhost:5173"),
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    }
+    extra = os.getenv("CORS_ORIGINS", "")
+    for origin in extra.split(","):
+        origin = origin.strip()
+        if origin:
+            origins.add(origin)
+    return list(origins)
+
+
 def _ensure_document_error_column():
-    """Add error_message column on existing deployments without Alembic."""
     from sqlalchemy import inspect, text
     from app.extensions import db
 

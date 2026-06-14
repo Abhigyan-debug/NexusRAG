@@ -17,6 +17,16 @@ from app.services.citation_engine import build_citations
 from app.services.processing_log import log_stage
 from app.config import Config
 
+_pipeline = None
+
+
+def get_rag_pipeline() -> "RAGPipeline":
+    """Lazy singleton — avoids loading faiss/LLM at import time (critical on Render)."""
+    global _pipeline
+    if _pipeline is None:
+        _pipeline = RAGPipeline()
+    return _pipeline
+
 
 class RAGPipeline:
     def __init__(self):

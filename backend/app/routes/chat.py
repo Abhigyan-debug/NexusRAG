@@ -5,10 +5,9 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.extensions import db, limiter
 from app.models import Chat, Message, Document
 from app.utils import sanitize_input
-from app.services.rag_pipeline import RAGPipeline
+from app.services.rag_pipeline import get_rag_pipeline
 
 chat_bp = Blueprint("chat", __name__, url_prefix="/api/chat")
-pipeline = RAGPipeline()
 
 
 @chat_bp.route("", methods=["POST"])
@@ -48,7 +47,7 @@ def chat():
             full_response = ""
             citations = []
             confidence = 0.0
-            for event in pipeline.chat(user_id, query, history, document_ids, stream=True):
+            for event in get_rag_pipeline().chat(user_id, query, history, document_ids, stream=True):
                 if event["type"] == "token":
                     full_response += event["content"]
                     yield f"data: {json.dumps(event)}\n\n"
@@ -71,7 +70,7 @@ def chat():
     full_response = ""
     citations = []
     confidence = 0.0
-    for event in pipeline.chat(user_id, query, history, document_ids, stream=False):
+    for event in get_rag_pipeline().chat(user_id, query, history, document_ids, stream=False):
         if event["type"] == "token":
             full_response += event["content"]
         elif event["type"] == "complete":
@@ -130,7 +129,7 @@ def semantic_search():
     top_k = data.get("top_k", 10)
     if not query:
         return jsonify({"error": "Query is required"}), 400
-    results = pipeline.semantic_search(user_id, query, top_k)
+    results = get_rag_pipeline().semantic_search(user_id, query, top_k)
     return jsonify({"results": results, "query": query})
 
 
@@ -156,7 +155,8 @@ def research():
     from app.services.prompt_builder import build_research_prompt
     prompt = build_research_prompt(analysis_type, context)
     result = ""
-    for chunk in pipeline.llm.generate(prompt):
+    rag = get_rag_pipeline()
+    for chunk in rag.llm.generate(prompt):
         result += chunk
 
     return jsonify({"analysis": result, "type": analysis_type, "documents_analyzed": len(docs)})
