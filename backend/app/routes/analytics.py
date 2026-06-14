@@ -1,6 +1,7 @@
 from collections import Counter
 from flask import Blueprint, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from app.extensions import limiter
 
 from app.models import Document, DocumentMetadata, Chat, Message, Chunk
 
