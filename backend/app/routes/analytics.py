@@ -9,6 +9,7 @@ analytics_bp = Blueprint("analytics", __name__, url_prefix="/api/analytics")
 
 @analytics_bp.route("", methods=["GET"])
 @jwt_required()
+@limiter.exempt
 def get_analytics():
     user_id = int(get_jwt_identity())
 

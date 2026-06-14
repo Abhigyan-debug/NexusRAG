@@ -66,6 +66,7 @@ def upload():
 
 @documents_bp.route("", methods=["GET"])
 @jwt_required()
+@limiter.exempt
 def list_documents():
     user_id = int(get_jwt_identity())
     page = request.args.get("page", 1, type=int)
