@@ -1,6 +1,8 @@
-import uuid
 import hashlib
+import os
+import traceback
 from typing import List, Dict, Generator, Optional
+
 from app.extensions import db
 from app.models import Document, DocumentMetadata, Chunk, Embedding, KnowledgeGraphNode, KnowledgeGraphEdge
 from app.services.document_processor import extract_text, clean_text, detect_language, extract_metadata, identify_sections
@@ -11,7 +13,8 @@ from app.services.vector_store import VectorStore
 from app.services.retriever import Retriever
 from app.services.llm_service import LLMService
 from app.services.prompt_builder import build_rag_prompt
-from app.services.citation_engine import build_citations, format_citations_for_response
+from app.services.citation_engine import build_citations
+from app.services.processing_log import log_stage
 from app.config import Config
 
 
@@ -21,27 +24,34 @@ class RAGPipeline:
         self.retriever = Retriever(self.vector_store, Config.EMBEDDING_MODEL, Config.TOP_K)
         self.llm = LLMService()
 
-    def process_document(self, document: Document, filepath: str, api_key: str = None, model: str = None) -> Dict:
-        print("PROCESS DOCUMENT STARTED")
+    def process_document(
+        self,
+        document: Document,
+        filepath: str,
+        api_key: str = None,
+        model: str = None,
+    ) -> Dict:
+        doc_id = document.id
         try:
-            print("STEP 1: Extracting Text")
-
+            log_stage(doc_id, "start")
             document.status = "processing"
             db.session.commit()
 
+            log_stage(doc_id, "extract_text")
             text, page_count, pages = extract_text(filepath, document.file_type)
             text = clean_text(text)
 
-            print("STEP 2: NLP Pipeline")
+            log_stage(doc_id, "nlp_pipeline", f"chars={len(text)}")
             language = detect_language(text)
             meta = extract_metadata(text, document.original_filename)
             sections = identify_sections(text)
             nlp_results = run_nlp_pipeline(text)
 
-            print("STEP 3: Metadata")
+            log_stage(doc_id, "metadata")
             document.page_count = page_count
             document.word_count = meta["word_count"]
             document.status = "chunking"
+            db.session.commit()
 
             metadata = DocumentMetadata(
                 document_id=document.id,
@@ -57,28 +67,20 @@ class RAGPipeline:
             db.session.add(metadata)
             db.session.commit()
 
-            print("STEP 4: Chunking")
+            log_stage(doc_id, "chunking")
             chunks_data = create_chunks(
-                text,
-                document.id,
-                pages,
-                Config.CHUNK_SIZE,
-                Config.CHUNK_OVERLAP
+                text, document.id, pages, Config.CHUNK_SIZE, Config.CHUNK_OVERLAP
             )
-
             document.status = "embedding"
+            db.session.commit()
 
-            print("STEP 5: Embeddings")
+            log_stage(doc_id, "embeddings", f"chunks={len(chunks_data)}")
             chunk_texts = [c["content"] for c in chunks_data]
-            embeddings = generate_embeddings(
-                chunk_texts,
-                Config.EMBEDDING_MODEL
-            )
+            embeddings = generate_embeddings(chunk_texts, Config.EMBEDDING_MODEL)
 
-            print("STEP 6: Saving Chunks")
-
+            log_stage(doc_id, "save_chunks")
             chunk_ids = []
-            for i, chunk_data in enumerate(chunks_data):
+            for chunk_data in chunks_data:
                 chunk = Chunk(
                     document_id=document.id,
                     chunk_index=chunk_data["chunk_index"],
@@ -88,118 +90,104 @@ class RAGPipeline:
                 )
                 db.session.add(chunk)
                 db.session.flush()
-
                 chunk_ids.append(chunk.id)
-
-                emb = Embedding(
-                    chunk_id=chunk.id,
-                    model_name=Config.EMBEDDING_MODEL,
-                    dimension=embeddings.shape[1],
+                db.session.add(
+                    Embedding(
+                        chunk_id=chunk.id,
+                        model_name=Config.EMBEDDING_MODEL,
+                        dimension=int(embeddings.shape[1]),
+                    )
                 )
-                db.session.add(emb)
 
-            print("STEP 7: FAISS")
-
-            faiss_ids = self.vector_store.add_vectors(
-                document.user_id,
-                embeddings,
-                chunk_ids
-            )
-
+            log_stage(doc_id, "faiss_index")
+            faiss_ids = self.vector_store.add_vectors(document.user_id, embeddings, chunk_ids)
             for chunk_id, faiss_id in zip(chunk_ids, faiss_ids):
-                chunk = Chunk.query.get(chunk_id)
-                chunk.faiss_id = faiss_id
+                chunk = db.session.get(Chunk, chunk_id)
+                if chunk:
+                    chunk.faiss_id = faiss_id
 
-            print("STEP 8: Summary")
+            if os.getenv("SKIP_LLM_SUMMARY", "false").lower() not in ("1", "true", "yes"):
+                log_stage(doc_id, "llm_summary")
+                try:
+                    metadata.summary = self.llm.summarize(
+                        text[:8000], "executive", override_api_key=api_key, override_model=model
+                    )
+                except Exception as summary_err:
+                    log_stage(doc_id, "llm_summary_skipped", str(summary_err))
 
-            summary = self.llm.summarize(
-                text[:8000],
-                "executive",
-                override_api_key=api_key,
-                override_model=model
-            )
-
-            metadata.summary = summary
-
-            print("STEP 9: Knowledge Graph")
-
-            self._build_knowledge_graph(
-                document.user_id,
-                document,
-                nlp_results
-            )
-
-            print("STEP 10: Complete")
+            log_stage(doc_id, "knowledge_graph")
+            self._build_knowledge_graph(document.user_id, document, nlp_results)
 
             document.status = "ready"
+            if hasattr(document, "error_message"):
+                document.error_message = None
             db.session.commit()
+            log_stage(doc_id, "complete", f"chunks={len(chunks_data)} pages={page_count}")
 
-            return {
-                "status": "success",
-                "chunks": len(chunks_data),
-                "pages": page_count
-            }
+            return {"status": "success", "chunks": len(chunks_data), "pages": page_count}
 
         except Exception as e:
-            print("ERROR:", str(e))
-
-            import traceback
-            print(traceback.format_exc())
-
+            log_stage(doc_id, "failed", str(e))
+            traceback.print_exc()
             document.status = "error"
+            if hasattr(document, "error_message"):
+                document.error_message = str(e)[:2000]
             db.session.commit()
-
-            raise e
+            raise
 
     def _build_knowledge_graph(self, user_id: int, document: Document, nlp_results: Dict):
         doc_node_id = f"doc_{document.id}"
-        doc_node = KnowledgeGraphNode(
-            user_id=user_id,
-            node_id=doc_node_id,
-            label=document.original_filename,
-            node_type="Document",
-            document_id=document.id,
+        db.session.add(
+            KnowledgeGraphNode(
+                user_id=user_id,
+                node_id=doc_node_id,
+                label=document.original_filename,
+                node_type="Document",
+                document_id=document.id,
+            )
         )
-        db.session.add(doc_node)
 
         for entity in nlp_results.get("entities", [])[:30]:
-            # Use hash of full entity text to avoid collision from truncation
-            entity_hash = hashlib.md5(entity['text'].encode()).hexdigest()[:8]
+            entity_hash = hashlib.md5(entity["text"].encode()).hexdigest()[:8]
             entity_id = f"entity_{document.id}_{entity_hash}"
-            node = KnowledgeGraphNode(
-                user_id=user_id,
-                node_id=entity_id,
-                label=entity["text"],
-                node_type=entity["type"],
-                document_id=document.id,
-                properties={"entity_type": entity["type"]},
+            db.session.add(
+                KnowledgeGraphNode(
+                    user_id=user_id,
+                    node_id=entity_id,
+                    label=entity["text"],
+                    node_type=entity["type"],
+                    document_id=document.id,
+                    properties={"entity_type": entity["type"]},
+                )
             )
-            db.session.add(node)
-            edge = KnowledgeGraphEdge(
-                user_id=user_id,
-                source_id=entity_id,
-                target_id=doc_node_id,
-                relationship="MENTIONED_IN",
+            db.session.add(
+                KnowledgeGraphEdge(
+                    user_id=user_id,
+                    source_id=entity_id,
+                    target_id=doc_node_id,
+                    relationship="MENTIONED_IN",
+                )
             )
-            db.session.add(edge)
 
         for topic_data in nlp_results.get("topics", [])[:5]:
             topic_id = f"topic_{document.id}_{topic_data['topic']}"
-            node = KnowledgeGraphNode(
-                user_id=user_id,
-                node_id=topic_id,
-                label=topic_data["topic"],
-                node_type="Topic",
-                document_id=document.id,
+            db.session.add(
+                KnowledgeGraphNode(
+                    user_id=user_id,
+                    node_id=topic_id,
+                    label=topic_data["topic"],
+                    node_type="Topic",
+                    document_id=document.id,
+                )
             )
-            db.session.add(node)
-            edge = KnowledgeGraphEdge(
-                user_id=user_id,
-                source_id=doc_node_id,
-                target_id=topic_id,
-                relationship="COVERS",
+            db.session.add(
+                KnowledgeGraphEdge(
+                    user_id=user_id,
+                    source_id=doc_node_id,
+                    target_id=topic_id,
+                    relationship="COVERS",
+                )
             )
-            db.session.add(edge)
 
     def chat(
         self,

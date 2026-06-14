@@ -26,3 +26,10 @@ class Config:
     CHUNK_SIZE = 1000
     CHUNK_OVERLAP = 200
     TOP_K = 5
+
+    # Render / low-memory deployments: keep heavy ML off by default.
+    USE_HEAVY_NLP = os.getenv("USE_HEAVY_NLP", "false").lower() in ("1", "true", "yes")
+    USE_LIGHTWEIGHT_EMBEDDINGS = os.getenv("USE_LIGHTWEIGHT_EMBEDDINGS", "false").lower() in ("1", "true", "yes")
+    DOC_PROCESSING_MODE = os.getenv("DOC_PROCESSING_MODE", "subprocess")  # subprocess | sync | thread
+    SKIP_LLM_SUMMARY = os.getenv("SKIP_LLM_SUMMARY", "false").lower() in ("1", "true", "yes")
+    EMBEDDING_BATCH_SIZE = int(os.getenv("EMBEDDING_BATCH_SIZE", "16"))

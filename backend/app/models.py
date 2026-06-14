@@ -36,6 +36,7 @@ class Document(db.Model):
     file_type = db.Column(db.String(20), nullable=False)
     file_size = db.Column(db.Integer, default=0)
     status = db.Column(db.String(50), default="pending")
+    error_message = db.Column(db.Text, nullable=True)
     page_count = db.Column(db.Integer, default=0)
     word_count = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -52,6 +53,7 @@ class Document(db.Model):
             "file_type": self.file_type,
             "file_size": self.file_size,
             "status": self.status,
+            "error_message": self.error_message,
             "page_count": self.page_count,
             "word_count": self.word_count,
             "created_at": self.created_at.isoformat() if self.created_at else None,

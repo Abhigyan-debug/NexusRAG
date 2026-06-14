@@ -37,5 +37,23 @@ def create_app(config_class=Config):
 
     with app.app_context():
         db.create_all()
+        _ensure_document_error_column()
 
     return app
+
+
+def _ensure_document_error_column():
+    """Add error_message column on existing deployments without Alembic."""
+    from sqlalchemy import inspect, text
+    from app.extensions import db
+
+    try:
+        inspector = inspect(db.engine)
+        if "documents" not in inspector.get_table_names():
+            return
+        columns = {c["name"] for c in inspector.get_columns("documents")}
+        if "error_message" not in columns:
+            with db.engine.begin() as conn:
+                conn.execute(text("ALTER TABLE documents ADD COLUMN error_message TEXT"))
+    except Exception:
+        pass

@@ -36,14 +36,23 @@ def extract_entities(text: str) -> List[Dict]:
     return entities[:100]
 
 
+def _use_heavy_nlp() -> bool:
+    import os
+    return os.getenv("USE_HEAVY_NLP", "false").lower() in ("1", "true", "yes")
+
+
 def extract_keywords(text: str, top_n: int = 20) -> List[Dict]:
-    try:
-        from keybert import KeyBERT
-        kw_model = KeyBERT()
-        keywords = kw_model.extract_keywords(text[:10000], keyphrase_ngram_range=(1, 2), stop_words="english", top_n=top_n)
-        return [{"keyword": kw[0], "score": round(float(kw[1]), 4)} for kw in keywords]
-    except Exception:
-        return _fallback_keywords(text, top_n)
+    if _use_heavy_nlp():
+        try:
+            from keybert import KeyBERT
+            kw_model = KeyBERT()
+            keywords = kw_model.extract_keywords(
+                text[:10000], keyphrase_ngram_range=(1, 2), stop_words="english", top_n=top_n
+            )
+            return [{"keyword": kw[0], "score": round(float(kw[1]), 4)} for kw in keywords]
+        except Exception:
+            pass
+    return _fallback_keywords(text, top_n)
 
 
 def _fallback_keywords(text: str, top_n: int) -> List[Dict]:
@@ -77,29 +86,33 @@ def classify_document(text: str, topics: List[Dict]) -> str:
     return "General"
 
 
+def _keyword_sentiment(text: str) -> float:
+    positive = ["good", "great", "excellent", "success", "improve", "benefit", "positive", "growth", "innovative", "effective"]
+    negative = ["bad", "fail", "problem", "issue", "risk", "negative", "decline", "loss", "error", "concern"]
+    text_lower = text.lower()
+    pos = sum(text_lower.count(w) for w in positive)
+    neg = sum(text_lower.count(w) for w in negative)
+    total = pos + neg
+    if total == 0:
+        return 0.0
+    return round((pos - neg) / total, 4)
+
+
 def analyze_sentiment(text: str) -> float:
-    """Analyze sentiment using transformers model for better accuracy"""
-    try:
-        from transformers import pipeline
-        sentiment_model = pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
-        result = sentiment_model(text[:512])[0]  # Limit text to 512 tokens
-        
-        # Convert to -1 to 1 scale
-        if result['label'] == 'POSITIVE':
-            return round(result['score'], 4)
-        else:
-            return round(-result['score'], 4)
-    except Exception:
-        # Fallback to keyword-based sentiment if transformers fails
-        positive = ["good", "great", "excellent", "success", "improve", "benefit", "positive", "growth", "innovative", "effective"]
-        negative = ["bad", "fail", "problem", "issue", "risk", "negative", "decline", "loss", "error", "concern"]
-        text_lower = text.lower()
-        pos = sum(text_lower.count(w) for w in positive)
-        neg = sum(text_lower.count(w) for w in negative)
-        total = pos + neg
-        if total == 0:
-            return 0.0
-        return round((pos - neg) / total, 4)
+    if _use_heavy_nlp():
+        try:
+            from transformers import pipeline
+            sentiment_model = pipeline(
+                "sentiment-analysis",
+                model="distilbert-base-uncased-finetuned-sst-2-english",
+            )
+            result = sentiment_model(text[:512])[0]
+            if result["label"] == "POSITIVE":
+                return round(result["score"], 4)
+            return round(-result["score"], 4)
+        except Exception:
+            pass
+    return _keyword_sentiment(text)
 
 
 def run_nlp_pipeline(text: str) -> Dict:
