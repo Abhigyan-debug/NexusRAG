@@ -30,7 +30,19 @@ def create_app(config_class=Config):
             }
         },
         supports_credentials=True,
+        allow_headers=[
+            "Content-Type",
+            "Authorization",
+            "X-Requested-With",
+            "X-AI-Model",
+            "X-API-Key",
+        ],
     )
+
+    @app.before_request
+    def handle_preflight():
+        if request.method == "OPTIONS":
+            return "", 200
 
     @app.after_request
     def after_request(response):
@@ -40,11 +52,13 @@ def create_app(config_class=Config):
             response.headers["Access-Control-Allow-Origin"] = origin
 
         response.headers["Access-Control-Allow-Headers"] = (
-            "Content-Type, Authorization, X-Requested-With"
+            "Content-Type, Authorization, X-Requested-With, X-AI-Model, X-API-Key"
         )
+
         response.headers["Access-Control-Allow-Methods"] = (
             "GET, POST, PUT, DELETE, OPTIONS"
         )
+
         response.headers["Access-Control-Allow-Credentials"] = "true"
 
         return response
