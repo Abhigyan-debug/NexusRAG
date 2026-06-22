@@ -11,7 +11,8 @@ _model_lock = threading.Lock()
 
 
 def _use_lightweight() -> bool:
-    return os.getenv("USE_LIGHTWEIGHT_EMBEDDINGS", "false").lower() in ("1", "true", "yes")
+    from app.config import Config
+    return Config.USE_LIGHTWEIGHT_EMBEDDINGS
 
 
 def _lightweight_embeddings(texts: List[str]) -> np.ndarray:
