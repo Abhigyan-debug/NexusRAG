@@ -42,7 +42,20 @@ def create_app(config_class=Config):
     @app.before_request
     def handle_preflight():
         if request.method == "OPTIONS":
-            return "", 200
+            resp = app.make_response("")
+            origin = request.headers.get("Origin")
+            allowed = _cors_origins(app)
+            if origin and origin in allowed:
+                resp.headers["Access-Control-Allow-Origin"] = origin
+            resp.headers["Access-Control-Allow-Headers"] = (
+                "Content-Type, Authorization, X-Requested-With, X-AI-Model, X-API-Key"
+            )
+            resp.headers["Access-Control-Allow-Methods"] = (
+                "GET, POST, PUT, DELETE, OPTIONS"
+            )
+            resp.headers["Access-Control-Allow-Credentials"] = "true"
+            resp.headers["Access-Control-Max-Age"] = "86400"
+            return resp
 
     @app.after_request
     def after_request(response):
@@ -60,6 +73,7 @@ def create_app(config_class=Config):
         )
 
         response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Max-Age"] = "86400"
 
         return response
 
@@ -77,6 +91,7 @@ def create_app(config_class=Config):
 
     @app.route("/")
     @app.route("/api/health")
+    @limiter.exempt
     def health():
         return jsonify({
             "status": "healthy",

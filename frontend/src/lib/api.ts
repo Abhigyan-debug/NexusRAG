@@ -23,7 +23,14 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const config = error.config;
+    if (error.response?.status === 429 && (!config._retryCount || config._retryCount < 2)) {
+      config._retryCount = (config._retryCount || 0) + 1;
+      const delay = Math.pow(2, config._retryCount) * 1000;
+      await new Promise((r) => setTimeout(r, delay));
+      return api(config);
+    }
     if (error.response?.status === 401) {
       localStorage.removeItem('nexus_token');
       localStorage.removeItem('nexus_user');

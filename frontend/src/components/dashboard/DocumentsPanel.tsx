@@ -36,9 +36,13 @@ export default function DocumentsPanel() {
     refetchInterval: (query) => {
       const docs = query.state.data as Document[] | undefined;
       if (docs?.some((d) => ['pending', 'processing', 'chunking', 'embedding'].includes(d.status))) {
-        return 3000;
+        return 10000;
       }
       return false;
+    },
+    retry: (failureCount, error: any) => {
+      if (error?.response?.status === 429) return false;
+      return failureCount < 3;
     },
   });
 

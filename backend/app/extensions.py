@@ -1,3 +1,4 @@
+from flask import request as flask_request
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager
 from flask_limiter import Limiter
@@ -7,5 +8,6 @@ db = SQLAlchemy()
 jwt = JWTManager()
 limiter = Limiter(
     key_func=get_remote_address,
-    default_limits=["5000 per day", "1000 per hour"]
+    default_limits=[],
+    request_filter=lambda: flask_request.method == "OPTIONS",
 )

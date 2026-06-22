@@ -88,6 +88,7 @@ def list_documents():
 
 @documents_bp.route("/<int:doc_id>", methods=["GET"])
 @jwt_required()
+@limiter.exempt
 def get_document(doc_id):
     user_id = int(get_jwt_identity())
     doc = Document.query.filter_by(id=doc_id, user_id=user_id).first()
