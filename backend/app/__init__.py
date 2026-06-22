@@ -20,6 +20,10 @@ def create_app(config_class=Config):
     jwt.init_app(app)
     limiter.init_app(app)
 
+    @limiter.request_filter
+    def _skip_options():
+        return request.method == "OPTIONS"
+
     origins = _cors_origins(app)
 
     CORS(
