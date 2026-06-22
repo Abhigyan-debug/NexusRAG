@@ -19,6 +19,8 @@ const panels: Record<string, React.ComponentType> = {
   settings: SettingsPanel,
 };
 
+import { AnimatePresence, motion } from 'framer-motion';
+
 export default function DashboardPage() {
   const activeSection = useAppStore((s) => s.activeSection);
   const ActivePanel = panels[activeSection] || OverviewPanel;
@@ -26,8 +28,19 @@ export default function DashboardPage() {
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
-      <main className="flex-1 flex flex-col min-w-0 bg-nexus-bg">
-        <ActivePanel />
+      <main className="flex-1 flex flex-col min-w-0 bg-nexus-bg perspective-[2000px] overflow-y-auto overflow-x-hidden">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeSection}
+            initial={{ opacity: 0, rotateX: 15, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, rotateX: 0, scale: 1, y: 0 }}
+            exit={{ opacity: 0, rotateX: -15, scale: 0.95, y: -20 }}
+            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            className="flex-1 flex flex-col h-full transform-style-3d origin-top"
+          >
+            <ActivePanel />
+          </motion.div>
+        </AnimatePresence>
       </main>
       <RightSidebar />
     </div>
