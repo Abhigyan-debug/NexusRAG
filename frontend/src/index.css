@@ -38,26 +38,91 @@
 
 @layer components {
   .nexus-panel {
-    @apply bg-nexus-panel border border-nexus-border rounded-xl;
+    @apply rounded-xl border border-white/10 relative overflow-hidden;
+    background: linear-gradient(145deg, rgba(26, 26, 38, 0.95) 0%, rgba(18, 18, 26, 0.95) 100%);
+    box-shadow: 
+      inset 0 1px 1px rgba(255, 255, 255, 0.15),
+      inset 0 -1px 1px rgba(0, 0, 0, 0.3),
+      0 12px 30px -10px rgba(0, 0, 0, 0.8),
+      0 4px 10px -4px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(12px);
+    transform-style: preserve-3d;
   }
 
   .nexus-btn-primary {
-    @apply px-6 py-2.5 bg-nexus-gradient text-white font-medium rounded-lg
-           hover:opacity-90 transition-all duration-200 shadow-lg shadow-nexus-accent/20;
+    @apply px-6 py-2.5 font-medium rounded-lg text-white transition-all duration-300 relative overflow-hidden;
+    background: linear-gradient(180deg, #818cf8 0%, #6366f1 50%, #4f46e5 100%);
+    box-shadow: 
+      inset 0 1px 2px rgba(255, 255, 255, 0.4),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.3),
+      0 4px 12px rgba(99, 102, 241, 0.4),
+      0 2px 4px rgba(0, 0, 0, 0.3);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+    transform: translateY(0);
+  }
+
+  .nexus-btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+      inset 0 1px 2px rgba(255, 255, 255, 0.5),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.3),
+      0 8px 16px rgba(99, 102, 241, 0.5),
+      0 4px 8px rgba(0, 0, 0, 0.4);
+    filter: brightness(1.1);
+  }
+
+  .nexus-btn-primary:active {
+    transform: translateY(1px);
+    box-shadow: 
+      inset 0 2px 4px rgba(0, 0, 0, 0.4),
+      0 1px 2px rgba(99, 102, 241, 0.2);
   }
 
   .nexus-btn-secondary {
-    @apply px-6 py-2.5 bg-nexus-surface border border-nexus-border text-nexus-text
-           font-medium rounded-lg hover:border-nexus-accent/50 transition-all duration-200;
+    @apply px-6 py-2.5 text-nexus-text font-medium rounded-lg transition-all duration-300;
+    background: linear-gradient(180deg, #2a2a3a 0%, #1a1a26 100%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 
+      inset 0 1px 1px rgba(255, 255, 255, 0.1),
+      inset 0 -1px 2px rgba(0, 0, 0, 0.4),
+      0 4px 6px rgba(0, 0, 0, 0.3);
+    text-shadow: 0 1px 1px rgba(0,0,0,0.5);
+  }
+
+  .nexus-btn-secondary:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+      inset 0 1px 1px rgba(255, 255, 255, 0.15),
+      inset 0 -1px 2px rgba(0, 0, 0, 0.4),
+      0 6px 10px rgba(0, 0, 0, 0.4);
+    border-color: rgba(99, 102, 241, 0.4);
+  }
+
+  .nexus-btn-secondary:active {
+    transform: translateY(1px);
+    box-shadow: 
+      inset 0 2px 4px rgba(0, 0, 0, 0.5);
   }
 
   .nexus-input {
-    @apply w-full px-4 py-3 bg-nexus-surface border border-nexus-border rounded-lg
-           text-nexus-text placeholder-nexus-muted focus:outline-none focus:border-nexus-accent
-           focus:ring-1 focus:ring-nexus-accent/50 transition-all duration-200;
+    @apply w-full px-4 py-3 rounded-lg text-nexus-text placeholder-nexus-muted 
+           focus:outline-none transition-all duration-300;
+    background: rgba(10, 10, 15, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 
+      inset 0 2px 5px rgba(0, 0, 0, 0.5),
+      0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  .nexus-input:focus {
+    border-color: rgba(99, 102, 241, 0.6);
+    box-shadow: 
+      inset 0 2px 5px rgba(0, 0, 0, 0.5),
+      0 0 0 2px rgba(99, 102, 241, 0.2),
+      0 1px 0 rgba(255, 255, 255, 0.05);
   }
 
   .gradient-text {
-    @apply bg-nexus-gradient bg-clip-text text-transparent;
+    @apply bg-nexus-gradient bg-clip-text text-transparent drop-shadow-lg;
   }
 }
