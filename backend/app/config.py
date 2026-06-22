@@ -56,8 +56,8 @@ class Config:
     TOP_K = 5
 
     USE_HEAVY_NLP = os.getenv("USE_HEAVY_NLP", "false").lower() in ("1", "true", "yes")
-    USE_LIGHTWEIGHT_EMBEDDINGS = os.getenv("USE_LIGHTWEIGHT_EMBEDDINGS", "true").lower() in ("1", "true", "yes")
-    DOC_PROCESSING_MODE = os.getenv("DOC_PROCESSING_MODE", "thread")
+    USE_LIGHTWEIGHT_EMBEDDINGS = True
+    DOC_PROCESSING_MODE = "thread"
     SKIP_LLM_SUMMARY = os.getenv("SKIP_LLM_SUMMARY", "false").lower() in ("1", "true", "yes")
     EMBEDDING_BATCH_SIZE = int(os.getenv("EMBEDDING_BATCH_SIZE", "16"))
 
