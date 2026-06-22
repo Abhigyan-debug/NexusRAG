@@ -30,7 +30,7 @@ def process_document_in_app(doc_id: int, filepath: str, app, api_key: str = None
 
 
 def _processing_mode() -> str:
-    return os.getenv("DOC_PROCESSING_MODE", "subprocess").lower()
+    return os.getenv("DOC_PROCESSING_MODE", "thread").lower()
 
 
 def enqueue_document_processing(
