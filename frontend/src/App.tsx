@@ -20,7 +20,7 @@ const PageWrapper = ({ children }: { children: React.ReactNode }) => (
     animate={{ opacity: 1, rotateY: 0, scale: 1, z: 0 }}
     exit={{ opacity: 0, rotateY: -15, scale: 0.95, z: -100 }}
     transition={{ type: "spring", stiffness: 200, damping: 20 }}
-    className="h-full w-full transform-style-3d origin-center"
+    className="min-h-screen w-full transform-style-3d origin-center"
   >
     {children}
   </motion.div>
@@ -29,7 +29,7 @@ const PageWrapper = ({ children }: { children: React.ReactNode }) => (
 function AnimatedRoutes() {
   const location = useLocation();
   return (
-    <div className="perspective-[2000px] h-screen w-full overflow-hidden">
+    <div className="perspective-[2000px] min-h-screen w-full overflow-x-hidden">
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
           <Route path="/" element={<PageWrapper><LandingPage /></PageWrapper>} />
