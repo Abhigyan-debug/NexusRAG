@@ -1,10 +1,13 @@
-import { useRef, useMemo, useState } from 'react';
+import { useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
+// Shared pointer position (normalized -1..1); mutated directly to avoid React re-renders.
+const pointer = { x: 0, y: 0 };
+
 function NeuralNetwork() {
   const groupRef = useRef<THREE.Group>(null);
-  const [mouse, setMouse] = useState({ x: 0, y: 0 });
+  const smoothed = useRef({ x: 0, y: 0 });
 
   const { pointsGeometry, linesGeometry } = useMemo(() => {
     const count = 800;
@@ -43,11 +46,19 @@ function NeuralNetwork() {
     return { pointsGeometry: pGeo, linesGeometry: lGeo };
   }, []);
 
-  useFrame((state) => {
-    if (groupRef.current) {
-      groupRef.current.rotation.y = state.clock.elapsedTime * 0.05 + mouse.x * 0.3;
-      groupRef.current.rotation.x = mouse.y * 0.2;
-    }
+  useEffect(() => () => {
+    pointsGeometry.dispose();
+    linesGeometry.dispose();
+  }, [pointsGeometry, linesGeometry]);
+
+  useFrame((state, delta) => {
+    if (!groupRef.current) return;
+    // Ease toward the pointer so movement stays smooth
+    const k = Math.min(1, delta * 3);
+    smoothed.current.x += (pointer.x - smoothed.current.x) * k;
+    smoothed.current.y += (pointer.y - smoothed.current.y) * k;
+    groupRef.current.rotation.y = state.clock.elapsedTime * 0.05 + smoothed.current.x * 0.3;
+    groupRef.current.rotation.x = smoothed.current.y * 0.2;
   });
 
   return (
@@ -62,10 +73,10 @@ function NeuralNetwork() {
         />
       </points>
       <lineSegments geometry={linesGeometry}>
-        <lineBasicMaterial color="#6366f1" transparent opacity={0.15} />
+        <lineBasicMaterial color="#6366f1" transparent opacity={0.15} depthWrite={false} />
       </lineSegments>
       <mesh>
-        <sphereGeometry args={[1.8, 32, 32]} />
+        <sphereGeometry args={[1.8, 24, 24]} />
         <meshStandardMaterial
           color="#1a1a2e"
           transparent
@@ -81,21 +92,22 @@ function NeuralNetwork() {
 }
 
 export default function BrainScene() {
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
+      pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    };
+    window.addEventListener('pointermove', onMove, { passive: true });
+    return () => window.removeEventListener('pointermove', onMove);
+  }, []);
+
   return (
-    <div
-      className="absolute inset-0"
-      onMouseMove={(e) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-        const y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-        if (typeof window !== 'undefined') {
-          (window as any).__brainMouse = { x, y };
-        }
-      }}
-    >
+    // Fixed to the viewport so the canvas stays screen-sized instead of spanning the whole scrolling page
+    <div className="fixed inset-0 pointer-events-none" aria-hidden>
       <Canvas
         camera={{ position: [0, 0, 6], fov: 60 }}
-        dpr={[1, 2]}
+        dpr={[1, 1.5]}
+        gl={{ antialias: false, alpha: true, powerPreference: 'high-performance' }}
         style={{ background: 'transparent' }}
       >
         <NeuralNetwork />
