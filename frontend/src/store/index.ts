@@ -1,12 +1,15 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { User, Document, Message, Citation } from '../types';
+import type { User, Document, Citation } from '../types';
+import type { ThemePreference } from '../lib/theme';
+import { queryClient } from '../lib/queryClient';
 
 interface AuthState {
   user: User | null;
   token: string | null;
   tokenExpiry: number | null;
   setAuth: (user: User, token: string) => void;
+  setUser: (user: User) => void;
   logout: () => void;
   isAuthenticated: () => boolean;
   isTokenExpired: () => boolean;
@@ -27,11 +30,18 @@ export const useAuthStore = create<AuthState>()(
         localStorage.setItem('nexus_token_expiry', expiry.toString());
         set({ user, token, tokenExpiry: expiry });
       },
+      setUser: (user) => {
+        localStorage.setItem('nexus_user', JSON.stringify(user));
+        set({ user });
+      },
       logout: () => {
         localStorage.removeItem('nexus_token');
         localStorage.removeItem('nexus_user');
         localStorage.removeItem('nexus_token_expiry');
         set({ user: null, token: null, tokenExpiry: null });
+        // Drop the previous user's data so the next sign-in starts clean
+        useAppStore.getState().resetSession();
+        queryClient.clear();
       },
       isAuthenticated: () => !!get().token && !get().isTokenExpired(),
       isTokenExpired: () => {
@@ -75,6 +85,9 @@ interface AppState {
   setApiKey: (key: string) => void;
   aiModel: string;
   setAiModel: (model: string) => void;
+  theme: ThemePreference;
+  setTheme: (theme: ThemePreference) => void;
+  resetSession: () => void;
 }
 
 export const useAppStore = create<AppState>()(persist((set, get) => ({
@@ -109,4 +122,17 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
   setApiKey: (key) => set({ apiKey: key }),
   aiModel: 'gemini-2.5-flash',
   setAiModel: (model) => set({ aiModel: model }),
-}), { name: 'nexus-app-settings', partialize: (state) => ({ apiKey: state.apiKey, aiModel: state.aiModel }) }));
+  theme: 'dark',
+  setTheme: (theme) => set({ theme }),
+  resetSession: () =>
+    set({
+      activeSection: 'overview',
+      selectedDocuments: [],
+      documents: [],
+      currentChatId: null,
+      sidebarKeywords: [],
+      sidebarEntities: [],
+      sidebarConfidence: 0,
+      latestCitations: [],
+    }),
+}), { name: 'nexus-app-settings', partialize: (state) => ({ apiKey: state.apiKey, aiModel: state.aiModel, theme: state.theme }) }));

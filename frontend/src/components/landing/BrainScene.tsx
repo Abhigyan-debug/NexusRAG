@@ -1,11 +1,21 @@
 import { useRef, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { useResolvedTheme, type ResolvedTheme } from '../../lib/theme';
+
+// Additive glow reads well on dark; on a light page the same points need normal
+// blending and deeper colours to stay visible.
+const PALETTES = {
+  dark: { point: '#818cf8', line: '#6366f1', lineOpacity: 0.15, sphere: '#1a1a2e', sphereOpacity: 0.3, blending: THREE.AdditiveBlending },
+  light: { point: '#6366f1', line: '#818cf8', lineOpacity: 0.14, sphere: '#a5b4fc', sphereOpacity: 0.55, blending: THREE.NormalBlending },
+} as const;
 
 // Shared pointer position (normalized -1..1); mutated directly to avoid React re-renders.
 const pointer = { x: 0, y: 0 };
 
-function NeuralNetwork() {
+function NeuralNetwork({ theme }: { theme: ResolvedTheme }) {
+  const palette = PALETTES[theme];
   const groupRef = useRef<THREE.Group>(null);
   const smoothed = useRef({ x: 0, y: 0 });
 
@@ -65,24 +75,31 @@ function NeuralNetwork() {
     <group ref={groupRef}>
       <points geometry={pointsGeometry} frustumCulled={false}>
         <pointsMaterial
-          color="#818cf8"
+          key={theme}
+          color={palette.point}
           size={0.025}
           sizeAttenuation
           depthWrite={false}
-          blending={THREE.AdditiveBlending}
+          transparent
+          blending={palette.blending}
         />
       </points>
       <lineSegments geometry={linesGeometry}>
-        <lineBasicMaterial color="#6366f1" transparent opacity={0.15} depthWrite={false} />
+        <lineBasicMaterial color={palette.line} transparent opacity={palette.lineOpacity} depthWrite={false} />
       </lineSegments>
       <mesh>
         <sphereGeometry args={[1.8, 24, 24]} />
-        <meshStandardMaterial
-          color="#1a1a2e"
-          transparent
-          opacity={0.3}
-          wireframe
-        />
+        {theme === 'light' ? (
+          // Unlit so it keeps its soft indigo instead of being shaded dark by the scene lights
+          <meshBasicMaterial color={palette.sphere} transparent opacity={palette.sphereOpacity} wireframe />
+        ) : (
+          <meshStandardMaterial
+            color={palette.sphere}
+            transparent
+            opacity={palette.sphereOpacity}
+            wireframe
+          />
+        )}
       </mesh>
       <ambientLight intensity={0.2} />
       <pointLight position={[10, 10, 10]} intensity={0.8} color="#6366f1" />
@@ -92,6 +109,8 @@ function NeuralNetwork() {
 }
 
 export default function BrainScene() {
+  const theme = useResolvedTheme();
+
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
       pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
@@ -101,17 +120,20 @@ export default function BrainScene() {
     return () => window.removeEventListener('pointermove', onMove);
   }, []);
 
-  return (
-    // Fixed to the viewport so the canvas stays screen-sized instead of spanning the whole scrolling page
-    <div className="fixed inset-0 pointer-events-none" aria-hidden>
+  // Portaled to <body>: the animated page wrapper uses CSS transforms, and a transformed
+  // ancestor turns `position: fixed` into page-relative, which would stretch the canvas
+  // to the full page height (slow, and the scene drifts off-centre).
+  return createPortal(
+    <div className="fixed inset-0 pointer-events-none -z-10" aria-hidden>
       <Canvas
         camera={{ position: [0, 0, 6], fov: 60 }}
         dpr={[1, 1.5]}
         gl={{ antialias: false, alpha: true, powerPreference: 'high-performance' }}
         style={{ background: 'transparent' }}
       >
-        <NeuralNetwork />
+        <NeuralNetwork theme={theme} />
       </Canvas>
-    </div>
+    </div>,
+    document.body
   );
 }

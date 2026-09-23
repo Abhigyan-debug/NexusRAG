@@ -7,7 +7,8 @@ import KnowledgeGraphPanel from '../components/dashboard/KnowledgeGraphPanel';
 import AnalyticsPanel from '../components/dashboard/AnalyticsPanel';
 import SettingsPanel from '../components/dashboard/SettingsPanel';
 import OverviewPanel from '../components/dashboard/OverviewPanel';
-import { useAppStore } from '../store';
+import AdminPanel from '../components/dashboard/AdminPanel';
+import { useAppStore, useAuthStore } from '../store';
 
 const panels: Record<string, React.ComponentType> = {
   overview: OverviewPanel,
@@ -17,13 +18,17 @@ const panels: Record<string, React.ComponentType> = {
   'knowledge-graph': KnowledgeGraphPanel,
   analytics: AnalyticsPanel,
   settings: SettingsPanel,
+  admin: AdminPanel,
 };
 
 import { AnimatePresence, motion } from 'framer-motion';
 
 export default function DashboardPage() {
   const activeSection = useAppStore((s) => s.activeSection);
-  const ActivePanel = panels[activeSection] || OverviewPanel;
+  const isAdmin = useAuthStore((s) => s.user?.role === 'admin');
+  // The admin page is only reachable for admins (the API enforces this too)
+  const section = activeSection === 'admin' && !isAdmin ? 'overview' : activeSection;
+  const ActivePanel = panels[section] || OverviewPanel;
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -31,7 +36,7 @@ export default function DashboardPage() {
       <main className="flex-1 flex flex-col min-w-0 bg-nexus-bg perspective-[2000px] overflow-y-auto overflow-x-hidden">
         <AnimatePresence mode="wait">
           <motion.div
-            key={activeSection}
+            key={section}
             initial={{ opacity: 0, rotateX: 15, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, rotateX: 0, scale: 1, y: 0 }}
             exit={{ opacity: 0, rotateX: -15, scale: 0.95, y: -20 }}

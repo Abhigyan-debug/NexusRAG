@@ -112,6 +112,8 @@ def delete_document(doc_id):
 
     from app.services.rag_pipeline import get_rag_pipeline
     get_rag_pipeline().delete_document_vectors(user_id, doc)
+    from app.security import log_activity
+    log_activity(user_id, "document_deleted", doc.original_filename, commit=False)
     db.session.delete(doc)
     db.session.commit()
     return jsonify({"message": "Document deleted"})
@@ -140,6 +142,8 @@ def summarize_document(doc_id):
     summary = pipeline.llm.summarize(text, summary_type)
     if doc.metadata_record:
         doc.metadata_record.summary = summary
-        db.session.commit()
+    from app.security import log_activity
+    log_activity(user_id, "summary_generated", doc.original_filename, commit=False)
+    db.session.commit()
 
     return jsonify({"summary": summary, "type": summary_type})

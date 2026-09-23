@@ -13,8 +13,17 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    # Two-factor authentication (TOTP). totp_secret is set during setup and only
+    # enforced once totp_enabled is True.
+    totp_secret = db.Column(db.String(64), nullable=True)
+    totp_enabled = db.Column(db.Boolean, default=False, nullable=False)
+    totp_recovery_codes = db.Column(db.JSON, nullable=True)  # sha256 hashes of unused codes
+    totp_last_counter = db.Column(db.Integer, nullable=True)  # blocks replay of a used code
+
     documents = db.relationship("Document", backref="owner", lazy="dynamic", cascade="all, delete-orphan")
     chats = db.relationship("Chat", backref="owner", lazy="dynamic", cascade="all, delete-orphan")
+    sessions = db.relationship("UserSession", backref="user", lazy="dynamic", cascade="all, delete-orphan")
+    activities = db.relationship("ActivityLog", backref="user", lazy="dynamic", cascade="all, delete-orphan")
 
     def to_dict(self):
         return {
@@ -23,7 +32,32 @@ class User(db.Model):
             "name": self.name,
             "role": self.role,
             "created_at": self.created_at.isoformat() if self.created_at else None,
+            "two_factor_enabled": bool(self.totp_enabled),
+            "recovery_codes_remaining": len(self.totp_recovery_codes or []) if self.totp_enabled else 0,
         }
+
+
+class UserSession(db.Model):
+    """One signed-in device. Its id is embedded in the JWT as the `sid` claim."""
+    __tablename__ = "user_sessions"
+
+    id = db.Column(db.String(36), primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    user_agent = db.Column(db.String(512))
+    ip_address = db.Column(db.String(64))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    last_seen_at = db.Column(db.DateTime, default=datetime.utcnow)
+    revoked_at = db.Column(db.DateTime, nullable=True)
+
+
+class ActivityLog(db.Model):
+    __tablename__ = "activity_logs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    action = db.Column(db.String(50), nullable=False)
+    target = db.Column(db.String(512))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
 
 class Document(db.Model):

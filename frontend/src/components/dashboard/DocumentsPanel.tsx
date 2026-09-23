@@ -21,10 +21,12 @@ const statusConfig: Record<string, { icon: typeof CheckCircle; color: string; la
 
 export default function DocumentsPanel() {
   const [uploadProgress, setUploadProgress] = useState<string[]>([]);
+  const [uploadError, setUploadError] = useState('');
   const queryClient = useQueryClient();
   const setDocuments = useAppStore((s) => s.setDocuments);
   const selectedDocuments = useAppStore((s) => s.selectedDocuments);
   const toggleDocument = useAppStore((s) => s.toggleDocument);
+  const setSelectedDocuments = useAppStore((s) => s.setSelectedDocuments);
   const setSidebarData = useAppStore((s) => s.setSidebarData);
 
   const { data, isLoading } = useQuery({
@@ -54,19 +56,49 @@ export default function DocumentsPanel() {
 
   const uploadMutation = useMutation({
     mutationFn: (files: File[]) => documentsApi.upload(files),
-    onSuccess: () => {
+    onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['documents'] });
+      queryClient.invalidateQueries({ queryKey: ['analytics'] });
+      queryClient.invalidateQueries({ queryKey: ['activity'] });
       setUploadProgress([]);
+      const rejected = (res.data?.uploads || []).filter((u: { status: string }) => u.status === 'error');
+      if (rejected.length) {
+        setUploadError(`Skipped ${rejected.map((u: { filename: string }) => u.filename).join(', ')}: unsupported file type`);
+      }
+    },
+    onError: (err: any) => {
+      setUploadProgress([]);
+      const status = err?.response?.status;
+      setUploadError(
+        status === 429
+          ? 'Upload limit reached (20 per hour). Please try again later.'
+          : status === 413
+            ? 'File is too large (max 50MB).'
+            : err?.response?.data?.error || 'Upload failed. Please try again.'
+      );
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => documentsApi.delete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['documents'] }),
+    onSuccess: (_res, id) => {
+      // A deleted document must not stay in the chat/research filter
+      setSelectedDocuments(useAppStore.getState().selectedDocuments.filter((d) => d !== id));
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
+      queryClient.invalidateQueries({ queryKey: ['knowledge-graph'] });
+      queryClient.invalidateQueries({ queryKey: ['analytics'] });
+      queryClient.invalidateQueries({ queryKey: ['activity'] });
+    },
   });
 
   const onDrop = useCallback(
-    (acceptedFiles: File[]) => {
+    (acceptedFiles: File[], rejections: { file: File }[]) => {
+      setUploadError(
+        rejections.length
+          ? `Skipped ${rejections.map((r) => r.file.name).join(', ')}: only PDF, DOCX and TXT up to 50MB are supported`
+          : ''
+      );
+      if (!acceptedFiles.length) return;
       setUploadProgress(acceptedFiles.map((f) => f.name));
       uploadMutation.mutate(acceptedFiles);
     },
@@ -81,6 +113,7 @@ export default function DocumentsPanel() {
       'text/plain': ['.txt'],
     },
     multiple: true,
+    maxSize: 50 * 1024 * 1024,
   });
 
   const formatSize = (bytes: number) => {
@@ -121,6 +154,14 @@ export default function DocumentsPanel() {
         </p>
         <p className="text-nexus-muted text-sm">PDF, DOCX, TXT — up to 50MB each</p>
       </div>
+
+      {uploadError && (
+        <div className="flex items-center gap-2 p-3 mb-6 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span className="flex-1">{uploadError}</span>
+          <button onClick={() => setUploadError('')} className="text-xs hover:underline">Dismiss</button>
+        </div>
+      )}
 
       {uploadMutation.isPending && uploadProgress.length > 0 && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="nexus-panel p-4 mb-6 relative overflow-hidden">
@@ -193,8 +234,12 @@ export default function DocumentsPanel() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    deleteMutation.mutate(doc.id);
+                    if (window.confirm(`Delete "${doc.original_filename}"? This cannot be undone.`)) {
+                      deleteMutation.mutate(doc.id);
+                    }
                   }}
+                  disabled={deleteMutation.isPending && deleteMutation.variables === doc.id}
+                  title="Delete document"
                   className="p-2 text-nexus-muted hover:text-red-400 transition-colors rounded-lg hover:bg-red-500/5"
                 >
                   <Trash2 className="w-4 h-4" />

@@ -4,6 +4,51 @@ export interface User {
   name: string;
   role: string;
   created_at?: string;
+  two_factor_enabled?: boolean;
+  recovery_codes_remaining?: number;
+}
+
+export interface UserSession {
+  id: string;
+  browser: string;
+  os: string;
+  device_type: 'desktop' | 'mobile' | 'tablet';
+  ip_address: string | null;
+  created_at: string | null;
+  last_seen_at: string | null;
+  current: boolean;
+}
+
+export type SessionStatus = 'active' | 'expired' | 'revoked';
+
+export interface AdminSession extends Omit<UserSession, 'current'> {
+  current: boolean;
+  status: SessionStatus;
+  revoked_at: string | null;
+  user: { id: number; name: string; email: string; role: string; two_factor_enabled: boolean };
+}
+
+export interface AdminOverview {
+  total_users: number;
+  active_sessions: number;
+  active_users: number;
+  sign_ins_24h: number;
+  users_with_2fa: number;
+}
+
+export interface ActivityItem {
+  id: string;
+  type: string;
+  target: string | null;
+  timestamp: string;
+}
+
+export type AnalyticsRange = '7d' | '30d' | '12m';
+
+export interface GrowthStat {
+  current: number;
+  previous: number;
+  change_pct: number | 'new' | null;
 }
 
 export interface DocumentMetadata {

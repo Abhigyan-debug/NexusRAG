@@ -159,4 +159,7 @@ def research():
     for chunk in rag.llm.generate(prompt):
         result += chunk
 
+    from app.security import log_activity
+    log_activity(user_id, "research_run", analysis_type.replace("_", " "))
+
     return jsonify({"analysis": result, "type": analysis_type, "documents_analyzed": len(docs)})

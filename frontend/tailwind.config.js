@@ -4,18 +4,23 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Theme tokens are RGB channels defined per theme in index.css, so opacity
+        // modifiers like bg-nexus-accent/10 keep working in both light and dark.
         nexus: {
-          bg: '#0a0a0f',
-          surface: '#12121a',
-          panel: '#1a1a26',
-          border: '#2a2a3a',
-          accent: '#6366f1',
-          'accent-light': '#818cf8',
-          glow: '#4f46e5',
-          cyan: '#22d3ee',
-          purple: '#a855f7',
-          text: '#e2e8f0',
-          muted: '#94a3b8',
+          bg: 'rgb(var(--nx-bg) / <alpha-value>)',
+          surface: 'rgb(var(--nx-surface) / <alpha-value>)',
+          panel: 'rgb(var(--nx-panel) / <alpha-value>)',
+          border: 'rgb(var(--nx-border) / <alpha-value>)',
+          accent: 'rgb(var(--nx-accent) / <alpha-value>)',
+          'accent-light': 'rgb(var(--nx-accent-light) / <alpha-value>)',
+          glow: 'rgb(var(--nx-glow) / <alpha-value>)',
+          cyan: 'rgb(var(--nx-cyan) / <alpha-value>)',
+          purple: 'rgb(var(--nx-purple) / <alpha-value>)',
+          text: 'rgb(var(--nx-text) / <alpha-value>)',
+          muted: 'rgb(var(--nx-muted) / <alpha-value>)',
+          heading: 'rgb(var(--nx-heading) / <alpha-value>)',
+          // Neutral tint for hover/pressed layers: white on dark, ink on light
+          overlay: 'rgb(var(--nx-overlay) / <alpha-value>)',
         },
       },
       fontFamily: {

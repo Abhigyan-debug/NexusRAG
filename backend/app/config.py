@@ -50,6 +50,8 @@ class Config:
     EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
     FAISS_INDEX_PATH = os.getenv("FAISS_INDEX_PATH") or os.path.join(os.getcwd(), "faiss_index")
     FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    # Comma-separated emails that are granted the admin role when they sign in
+    ADMIN_EMAILS = os.getenv("ADMIN_EMAILS", "")
     ALLOWED_EXTENSIONS = {"pdf", "docx", "txt"}
     CHUNK_SIZE = 1000
     CHUNK_OVERLAP = 200

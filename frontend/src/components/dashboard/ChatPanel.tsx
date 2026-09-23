@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Bot, User, Loader2, BookOpen, ChevronDown, ChevronUp, Download } from 'lucide-react';
+import { Send, Bot, User, Loader2, BookOpen, ChevronDown, ChevronUp, Download, Plus } from 'lucide-react';
 import { chatApi } from '../../lib/api';
 import { useAppStore } from '../../store';
 import type { Message, Citation } from '../../types';
@@ -11,6 +12,7 @@ export default function ChatPanel() {
   const [streaming, setStreaming] = useState(false);
   const [expandedCitation, setExpandedCitation] = useState<number | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
   const currentChatId = useAppStore((s) => s.currentChatId);
   const setCurrentChatId = useAppStore((s) => s.setCurrentChatId);
   const selectedDocuments = useAppStore((s) => s.selectedDocuments);
@@ -20,6 +22,34 @@ export default function ChatPanel() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Restore the ongoing conversation when coming back to this panel
+  useEffect(() => {
+    if (!currentChatId) return;
+    let cancelled = false;
+    chatApi
+      .getChat(currentChatId)
+      .then(({ data }) => {
+        if (!cancelled && data.messages) setMessages(data.messages);
+      })
+      .catch(() => {
+        // Chat no longer exists (or belongs to another account): start fresh
+        if (!cancelled) setCurrentChatId(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // Only on mount; later chat_id changes come from our own sends
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleNewChat = () => {
+    if (streaming) return;
+    setMessages([]);
+    setCurrentChatId(null);
+    setLatestCitations([]);
+    setSidebarData({ confidence: 0 });
+  };
 
   const handleSend = async () => {
     if (!input.trim() || streaming) return;
@@ -81,12 +111,22 @@ export default function ChatPanel() {
 
       setLatestCitations(citations);
       setSidebarData({ confidence });
-    } catch {
+      queryClient.invalidateQueries({ queryKey: ['analytics'] });
+      queryClient.invalidateQueries({ queryKey: ['activity'] });
+    } catch (err) {
+      const status = (err as { status?: number }).status;
+      if (status === 404) setCurrentChatId(null);
+      const detail =
+        status === 429
+          ? 'You are sending messages too quickly. Please wait a moment and try again.'
+          : err instanceof Error && err.message
+            ? err.message
+            : 'Sorry, an error occurred while processing your request.';
       setMessages((prev) => {
         const updated = [...prev];
         updated[updated.length - 1] = {
           ...updated[updated.length - 1],
-          content: 'Sorry, an error occurred while processing your request.',
+          content: `⚠ ${detail}`,
         };
         return updated;
       });
@@ -212,13 +252,23 @@ export default function ChatPanel() {
             {messages.length > 0 ? `${messages.length} messages` : 'Start a new conversation'}
           </span>
           {messages.length > 0 && (
-            <button 
-              onClick={handleExportChat}
-              className="flex items-center gap-1 text-xs text-nexus-muted hover:text-white transition-colors"
-            >
-              <Download className="w-3 h-3" />
-              Export Chat (TXT)
-            </button>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={handleNewChat}
+                disabled={streaming}
+                className="flex items-center gap-1 text-xs text-nexus-muted hover:text-nexus-heading transition-colors disabled:opacity-50"
+              >
+                <Plus className="w-3 h-3" />
+                New Chat
+              </button>
+              <button
+                onClick={handleExportChat}
+                className="flex items-center gap-1 text-xs text-nexus-muted hover:text-nexus-heading transition-colors"
+              >
+                <Download className="w-3 h-3" />
+                Export Chat (TXT)
+              </button>
+            </div>
           )}
         </div>
         <div className="flex gap-3 max-w-4xl mx-auto w-full">

@@ -20,6 +20,9 @@ def create_app(config_class=Config):
     jwt.init_app(app)
     limiter.init_app(app)
 
+    from app.security import init_session_tracking
+    init_session_tracking(jwt)
+
     @limiter.request_filter
     def _skip_options():
         return request.method == "OPTIONS"
@@ -86,12 +89,14 @@ def create_app(config_class=Config):
     from app.routes.chat import chat_bp
     from app.routes.analytics import analytics_bp
     from app.routes.knowledge_graph import kg_bp
+    from app.routes.admin import admin_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(documents_bp)
     app.register_blueprint(chat_bp)
     app.register_blueprint(analytics_bp)
     app.register_blueprint(kg_bp)
+    app.register_blueprint(admin_bp)
 
     @app.route("/")
     @app.route("/api/health")
@@ -107,7 +112,7 @@ def create_app(config_class=Config):
     try:
         with app.app_context():
             db.create_all()
-            _ensure_document_error_column()
+            _ensure_columns()
             logger.info("Database initialized OK")
     except Exception as exc:
         logger.error(
@@ -139,28 +144,37 @@ def _cors_origins(app):
     return list(origins)
 
 
-def _ensure_document_error_column():
+# Columns added after tables were first created; db.create_all() never alters existing tables.
+_ADDED_COLUMNS = {
+    "documents": {
+        "error_message": "TEXT",
+    },
+    "users": {
+        "totp_secret": "VARCHAR(64)",
+        "totp_enabled": "BOOLEAN NOT NULL DEFAULT FALSE",
+        "totp_recovery_codes": "JSON",
+        "totp_last_counter": "INTEGER",
+    },
+}
+
+
+def _ensure_columns():
     from sqlalchemy import inspect, text
     from app.extensions import db
 
-    try:
-        inspector = inspect(db.engine)
+    inspector = inspect(db.engine)
+    tables = set(inspector.get_table_names())
 
-        if "documents" not in inspector.get_table_names():
-            return
-
-        columns = {
-            c["name"]
-            for c in inspector.get_columns("documents")
-        }
-
-        if "error_message" not in columns:
-            with db.engine.begin() as conn:
-                conn.execute(
-                    text(
-                        "ALTER TABLE documents "
-                        "ADD COLUMN error_message TEXT"
-                    )
-                )
-    except Exception:
-        pass
+    for table, columns in _ADDED_COLUMNS.items():
+        if table not in tables:
+            continue
+        existing = {c["name"] for c in inspector.get_columns(table)}
+        for name, ddl in columns.items():
+            if name in existing:
+                continue
+            try:
+                with db.engine.begin() as conn:
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}"))
+                logger.info("Added column %s.%s", table, name)
+            except Exception as exc:
+                logger.error("Could not add column %s.%s: %s", table, name, exc)

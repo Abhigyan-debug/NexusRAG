@@ -4,11 +4,18 @@ import {
   User, Lock, Palette, Cpu, Key, Shield, Clock, Download, Trash2,
   AlertCircle, ChevronRight, Save
 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore, useAppStore } from '../../store';
 import { authApi } from '../../lib/api';
+import AppearanceSettings from './settings/AppearanceSettings';
+import TwoFactorSettings from './settings/TwoFactorSettings';
+import SessionSettings from './settings/SessionSettings';
 
 export default function SettingsPanel() {
-  const { user, token, setAuth } = useAuthStore();
+  const { user, setUser, logout } = useAuthStore();
+  const queryClient = useQueryClient();
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState('');
   const { apiKey, setApiKey, aiModel, setAiModel } = useAppStore();
   const [activeTab, setActiveTab] = useState('profile');
   const [name, setName] = useState(user?.name || '');
@@ -16,8 +23,6 @@ export default function SettingsPanel() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [passwordForm, setPasswordForm] = useState({ current: '', new: '', confirm: '' });
-  const [theme, setTheme] = useState('dark');
-  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
 
   const tabs = [
     { id: 'profile', icon: User, label: 'Profile Settings' },
@@ -36,7 +41,8 @@ export default function SettingsPanel() {
     setLoading(true);
     try {
       const { data } = await authApi.updateProfile({ name });
-      if (user && token) setAuth({ ...user, ...data }, token);
+      setUser({ ...user, ...data });
+      queryClient.invalidateQueries({ queryKey: ['activity'] });
       setMessage('Profile updated successfully');
       setTimeout(() => setMessage(''), 3000);
     } catch (error) {
@@ -63,15 +69,38 @@ export default function SettingsPanel() {
     }
     setLoading(true);
     try {
-      // Mock password change API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setMessage('Password changed successfully');
+      const { data } = await authApi.changePassword({
+        current_password: passwordForm.current,
+        new_password: passwordForm.new,
+      });
+      setMessage(
+        data.sessions_revoked
+          ? `Password changed. ${data.sessions_revoked} other device${data.sessions_revoked === 1 ? ' was' : 's were'} signed out.`
+          : 'Password changed successfully'
+      );
+      queryClient.invalidateQueries({ queryKey: ['activity'] });
+      queryClient.invalidateQueries({ queryKey: ['sessions'] });
       setPasswordForm({ current: '', new: '', confirm: '' });
-    } catch (error) {
-      setMessage('Failed to change password');
+    } catch (error: any) {
+      setMessage(error?.response?.data?.error || 'Failed to change password');
     } finally {
       setLoading(false);
       setTimeout(() => setMessage(''), 3000);
+    }
+  };
+
+  const handleDeleteAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!window.confirm('Permanently delete your account and all your data? This cannot be undone.')) return;
+    setLoading(true);
+    setDeleteError('');
+    try {
+      await authApi.deleteAccount(deletePassword);
+      logout();
+    } catch (error: any) {
+      setDeleteError(error?.response?.data?.error || 'Failed to delete account');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -104,7 +133,7 @@ export default function SettingsPanel() {
                       : 'bg-nexus-accent/10 text-nexus-accent-light'
                     : tab.danger
                       ? 'text-red-400 hover:bg-red-500/5'
-                      : 'text-nexus-text hover:bg-white/5'
+                      : 'text-nexus-text hover:bg-nexus-overlay/5'
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -124,11 +153,11 @@ export default function SettingsPanel() {
           {activeTab === 'profile' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
               <div>
-                <h3 className="text-2xl font-bold text-white mb-2">Profile Settings</h3>
+                <h3 className="text-2xl font-bold text-nexus-heading mb-2">Profile Settings</h3>
                 <p className="text-nexus-muted">Update your personal information and email preferences.</p>
               </div>
               
-              <form onSubmit={handleUpdateProfile} className="nexus-panel p-6 space-y-6">
+              <form onSubmit={handleUpdateProfile} className="nexus-panel nexus-panel-static p-6 space-y-6">
                 {message && (
                   <div className="p-3 bg-nexus-accent/10 border border-nexus-accent/20 rounded-lg text-nexus-accent-light text-sm">
                     {message}
@@ -168,46 +197,27 @@ export default function SettingsPanel() {
           {activeTab === 'theme' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
               <div>
-                <h3 className="text-2xl font-bold text-white mb-2">Theme Preferences</h3>
-                <p className="text-nexus-muted">Customize the appearance of your NexusRAG dashboard.</p>
+                <h3 className="text-2xl font-bold text-nexus-heading mb-2">Theme Preferences</h3>
+                <p className="text-nexus-muted">Choose how NexusRAG looks. Your choice is saved on this device.</p>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <button 
-                  onClick={() => setTheme('dark')}
-                  className={`nexus-panel p-6 flex flex-col items-center gap-4 hover:border-nexus-accent transition-colors ${theme === 'dark' ? 'border-2 border-nexus-accent' : ''}`}
-                >
-                  <div className="w-16 h-16 rounded-full bg-[#0B0C10] border border-gray-700 shadow-inner flex items-center justify-center">
-                    <div className="w-8 h-8 rounded-full bg-nexus-accent/20" />
-                  </div>
-                  <span className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-nexus-muted'}`}>Dark Mode {theme === 'dark' ? '(Active)' : ''}</span>
-                </button>
-                <button 
-                  onClick={() => setTheme('light')}
-                  className={`nexus-panel p-6 flex flex-col items-center gap-4 hover:border-nexus-accent transition-colors ${theme === 'light' ? 'border-2 border-nexus-accent' : ''}`}
-                >
-                  <div className="w-16 h-16 rounded-full bg-gray-100 border border-gray-300 shadow-inner flex items-center justify-center">
-                    <div className="w-8 h-8 rounded-full bg-nexus-accent/50" />
-                  </div>
-                  <span className={`font-medium ${theme === 'light' ? 'text-white' : 'text-nexus-muted'}`}>Light Mode {theme === 'light' ? '(Active)' : ''}</span>
-                </button>
-              </div>
+              <AppearanceSettings />
             </motion.div>
           )}
 
           {activeTab === 'ai' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
               <div>
-                <h3 className="text-2xl font-bold text-white mb-2">AI Model Selection</h3>
+                <h3 className="text-2xl font-bold text-nexus-heading mb-2">AI Model Selection</h3>
                 <p className="text-nexus-muted">Choose the language model for your workspace. (Make sure you provide the corresponding API Key in the API Key Management tab)</p>
               </div>
-              <div className="nexus-panel p-6 space-y-4">
+              <div className="nexus-panel nexus-panel-static p-6 space-y-4">
                 {[
                   { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', tag: 'Recommended' },
                   { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', tag: 'High Performance' },
                   { id: 'grok-2', name: 'Grok 2', tag: 'xAI' },
                   { id: 'grok-beta', name: 'Grok Beta', tag: 'xAI' }
                 ].map((model) => (
-                  <label key={model.id} className="flex items-center justify-between p-4 rounded-lg border border-nexus-border/50 hover:bg-white/5 cursor-pointer transition-colors">
+                  <label key={model.id} className="flex items-center justify-between p-4 rounded-lg border border-nexus-border/50 hover:bg-nexus-overlay/5 cursor-pointer transition-colors">
                     <div className="flex items-center gap-3">
                       <input 
                         type="radio" 
@@ -216,7 +226,7 @@ export default function SettingsPanel() {
                         onChange={() => setAiModel(model.id)}
                         className="text-nexus-accent" 
                       />
-                      <span className="font-medium text-white">{model.name}</span>
+                      <span className="font-medium text-nexus-heading">{model.name}</span>
                     </div>
                     {model.tag && <span className="text-xs bg-nexus-accent/20 text-nexus-accent-light px-2 py-1 rounded">{model.tag}</span>}
                   </label>
@@ -228,10 +238,10 @@ export default function SettingsPanel() {
           {activeTab === 'api' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
               <div>
-                <h3 className="text-2xl font-bold text-white mb-2">API Key Management</h3>
+                <h3 className="text-2xl font-bold text-nexus-heading mb-2">API Key Management</h3>
                 <p className="text-nexus-muted">Manage your API keys for Gemini or Grok.</p>
               </div>
-              <div className="nexus-panel p-6 space-y-6">
+              <div className="nexus-panel nexus-panel-static p-6 space-y-6">
                 {message && (
                   <div className="p-3 bg-nexus-accent/10 border border-nexus-accent/20 rounded-lg text-nexus-accent-light text-sm">
                     {message}
@@ -263,10 +273,10 @@ export default function SettingsPanel() {
           {activeTab === 'password' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
               <div>
-                <h3 className="text-2xl font-bold text-white mb-2">Change Password</h3>
+                <h3 className="text-2xl font-bold text-nexus-heading mb-2">Change Password</h3>
                 <p className="text-nexus-muted">Update your password to keep your account secure.</p>
               </div>
-              <form onSubmit={handleChangePassword} className="nexus-panel p-6 space-y-6">
+              <form onSubmit={handleChangePassword} className="nexus-panel nexus-panel-static p-6 space-y-6">
                 {message && (
                   <div className="p-3 bg-nexus-accent/10 border border-nexus-accent/20 rounded-lg text-nexus-accent-light text-sm">
                     {message}
@@ -319,67 +329,34 @@ export default function SettingsPanel() {
           {activeTab === 'security' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
               <div>
-                <h3 className="text-2xl font-bold text-white mb-2">Account Security</h3>
-                <p className="text-nexus-muted">Manage your security preferences and two-factor authentication.</p>
+                <h3 className="text-2xl font-bold text-nexus-heading mb-2">Account Security</h3>
+                <p className="text-nexus-muted">Add a second step to sign-in so a stolen password is not enough to get in.</p>
               </div>
-              <div className="nexus-panel p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-semibold text-white mb-1">Two-Factor Authentication (2FA)</h4>
-                    <p className="text-sm text-nexus-muted">Add an extra layer of security to your account.</p>
-                  </div>
-                  <button 
-                    onClick={() => setTwoFactorEnabled(!twoFactorEnabled)}
-                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                      twoFactorEnabled ? 'bg-red-500/10 text-red-500 hover:bg-red-500/20' : 'nexus-btn-primary'
-                    }`}
-                  >
-                    {twoFactorEnabled ? 'Disable 2FA' : 'Enable 2FA'}
-                  </button>
-                </div>
-              </div>
+              <TwoFactorSettings />
             </motion.div>
           )}
 
           {activeTab === 'sessions' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
               <div>
-                <h3 className="text-2xl font-bold text-white mb-2">Session Management</h3>
-                <p className="text-nexus-muted">View and manage your active sessions across different devices.</p>
+                <h3 className="text-2xl font-bold text-nexus-heading mb-2">Session Management</h3>
+                <p className="text-nexus-muted">Devices currently signed in to your account. Revoke any you don&apos;t recognise.</p>
               </div>
-              <div className="nexus-panel p-6 space-y-4">
-                <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-nexus-accent/20">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-nexus-accent/20 flex items-center justify-center">
-                      <Cpu className="w-5 h-5 text-nexus-accent-light" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-white">Windows PC • Chrome</p>
-                      <p className="text-sm text-nexus-muted">Current Session • Last active: Just now</p>
-                    </div>
-                  </div>
-                  <span className="text-xs bg-nexus-accent/20 text-nexus-accent-light px-2 py-1 rounded">Active</span>
-                </div>
-                <div className="flex justify-end pt-4 border-t border-nexus-border/50">
-                  <button className="px-4 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded-lg transition-colors border border-red-400/20">
-                    Revoke All Other Sessions
-                  </button>
-                </div>
-              </div>
+              <SessionSettings />
             </motion.div>
           )}
 
           {activeTab === 'export' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
               <div>
-                <h3 className="text-2xl font-bold text-white mb-2">Data Export</h3>
+                <h3 className="text-2xl font-bold text-nexus-heading mb-2">Data Export</h3>
                 <p className="text-nexus-muted">Download a copy of your personal data and preferences.</p>
               </div>
-              <div className="nexus-panel p-6">
+              <div className="nexus-panel nexus-panel-static p-6">
                 <div className="flex items-start gap-4 mb-6">
                   <Download className="w-6 h-6 text-nexus-accent-light shrink-0 mt-1" />
                   <div>
-                    <h4 className="font-semibold text-white mb-2">Export Workspace Data</h4>
+                    <h4 className="font-semibold text-nexus-heading mb-2">Export Workspace Data</h4>
                     <p className="text-sm text-nexus-muted leading-relaxed">
                       Download a JSON file containing your user profile, preferences, and settings. Document contents and vector embeddings are not included in this export.
                     </p>
@@ -398,19 +375,40 @@ export default function SettingsPanel() {
                 <h3 className="text-2xl font-bold text-red-500 mb-2">Delete Account</h3>
                 <p className="text-nexus-muted">Permanently remove your account and all associated data.</p>
               </div>
-              <div className="nexus-panel p-6 border-red-500/20 bg-red-500/5">
+              <div className="nexus-panel nexus-panel-static p-6 border-red-500/20 bg-red-500/5">
                 <div className="flex items-start gap-4 mb-6">
                   <AlertCircle className="w-6 h-6 text-red-500 shrink-0 mt-1" />
                   <div>
-                    <h4 className="font-semibold text-white mb-2">Warning: Irreversible Action</h4>
+                    <h4 className="font-semibold text-nexus-heading mb-2">Warning: Irreversible Action</h4>
                     <p className="text-sm text-nexus-muted leading-relaxed">
                       Deleting your account will permanently remove all your documents, chat history, settings, and personal data from our servers. This action cannot be undone.
                     </p>
                   </div>
                 </div>
-                <button className="w-full py-3 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-colors">
-                  I understand, delete my account
-                </button>
+                <form onSubmit={handleDeleteAccount} className="space-y-4">
+                  {deleteError && (
+                    <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
+                      {deleteError}
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-sm text-nexus-muted mb-1.5">Confirm with your password</label>
+                    <input
+                      type="password"
+                      value={deletePassword}
+                      onChange={(e) => setDeletePassword(e.target.value)}
+                      className="nexus-input w-full"
+                      required
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={loading || !deletePassword}
+                    className="w-full py-3 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-colors disabled:opacity-50"
+                  >
+                    {loading ? 'Deleting...' : 'I understand, delete my account'}
+                  </button>
+                </form>
               </div>
             </motion.div>
           )}

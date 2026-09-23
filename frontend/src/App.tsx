@@ -1,18 +1,14 @@
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'framer-motion';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import AboutPage from './pages/AboutPage';
-import ProtectedRoute from './components/ProtectedRoute';
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: { retry: 1, staleTime: 30000 },
-  },
-});
+import ProtectedRoute, { GuestRoute } from './components/ProtectedRoute';
+import { queryClient } from './lib/queryClient';
+import { useApplyTheme } from './lib/theme';
 
 const PageWrapper = ({ children }: { children: React.ReactNode }) => (
   <motion.div
@@ -33,8 +29,8 @@ function AnimatedRoutes() {
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
           <Route path="/" element={<PageWrapper><LandingPage /></PageWrapper>} />
-          <Route path="/login" element={<PageWrapper><LoginPage /></PageWrapper>} />
-          <Route path="/register" element={<PageWrapper><RegisterPage /></PageWrapper>} />
+          <Route path="/login" element={<GuestRoute><PageWrapper><LoginPage /></PageWrapper></GuestRoute>} />
+          <Route path="/register" element={<GuestRoute><PageWrapper><RegisterPage /></PageWrapper></GuestRoute>} />
           <Route path="/about" element={<PageWrapper><AboutPage /></PageWrapper>} />
           <Route
             path="/dashboard"
@@ -44,6 +40,7 @@ function AnimatedRoutes() {
               </ProtectedRoute>
             }
           />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AnimatePresence>
     </div>
@@ -51,6 +48,8 @@ function AnimatedRoutes() {
 }
 
 export default function App() {
+  useApplyTheme();
+
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>

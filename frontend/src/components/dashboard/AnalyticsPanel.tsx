@@ -1,23 +1,29 @@
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import {
   FileText, MessageSquare, Layers, BookOpen,
   TrendingUp, Hash, Users, Loader2, BarChart2, PieChart as PieChartIcon
 } from 'lucide-react';
-import { 
+import {
   AreaChart, Area, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer,
   PieChart, Pie, Cell, BarChart, Bar
 } from 'recharts';
 import { analyticsApi } from '../../lib/api';
 import { useAppStore } from '../../store';
+import { chartColors, tooltipStyle, PIE_COLORS } from '../../lib/chartTheme';
+import RangeSelect, { RANGE_LABELS } from '../common/RangeSelect';
+import type { AnalyticsRange } from '../../types';
 
 export default function AnalyticsPanel() {
   const setSidebarData = useAppStore((s) => s.setSidebarData);
+  const [range, setRange] = useState<AnalyticsRange>('7d');
 
   const { data, isLoading } = useQuery({
-    queryKey: ['analytics'],
+    queryKey: ['analytics', range],
+    placeholderData: keepPreviousData,
     queryFn: async () => {
-      const res = await analyticsApi.get();
+      const res = await analyticsApi.get(range);
       const analytics = res.data;
       setSidebarData({
         keywords: analytics.top_keywords?.map((k: { keyword: string; count: number }) => ({
@@ -50,23 +56,15 @@ export default function AnalyticsPanel() {
     { label: 'Conversations', value: overview?.total_chats || 0, icon: MessageSquare, color: 'text-green-400' },
   ];
 
-  const COLORS = ['#6366f1', '#a855f7', '#22d3ee', '#10b981'];
+  const COLORS = PIE_COLORS;
 
-  const activityData = data?.activity_timeline || [
-    { name: 'Mon', queries: 12, docs: 2 },
-    { name: 'Tue', queries: 24, docs: 5 },
-    { name: 'Wed', queries: 18, docs: 1 },
-    { name: 'Thu', queries: 35, docs: 8 },
-    { name: 'Fri', queries: 42, docs: 3 },
-    { name: 'Sat', queries: 15, docs: 0 },
-    { name: 'Sun', queries: 20, docs: 1 },
-  ];
+  const activityData: { name: string; queries: number; docs: number }[] = data?.activity_timeline || [];
+  const hasActivity = activityData.some((d) => d.queries > 0 || d.docs > 0);
 
-  const docTypesData = data?.doc_types || [
-    { name: 'PDF', value: 65 },
-    { name: 'DOCX', value: 25 },
-    { name: 'TXT', value: 10 },
-  ];
+  const docTypesData: { name: string; value: number }[] = (data?.doc_types || []).filter(
+    (d: { value: number }) => d.value > 0
+  );
+  const docTotal = docTypesData.reduce((sum, d) => sum + d.value, 0);
 
   return (
     <div className="p-6 h-full overflow-y-auto">
@@ -167,52 +165,66 @@ export default function AnalyticsPanel() {
 
         <div className="nexus-panel p-5">
           <h3 className="font-semibold text-sm mb-4">Sentiment Overview</h3>
-          <div className="flex items-center gap-4">
-            <div className="text-3xl font-display font-bold gradient-text">
-              {((overview?.avg_sentiment || 0.65) * 100).toFixed(0)}%
-            </div>
-            <div className="flex-1">
-              <div className="h-2 bg-nexus-bg rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full"
-                  style={{
-                    width: `${Math.max(10, Math.abs(overview?.avg_sentiment || 0.65) * 100)}%`,
-                    background: (overview?.avg_sentiment || 0.65) >= 0
-                      ? 'linear-gradient(90deg, #10b981, #22d3ee)'
-                      : 'linear-gradient(90deg, #ef4444, #f59e0b)',
-                  }}
-                />
+          {!overview?.total_documents ? (
+            <p className="text-nexus-muted text-sm">No sentiment data yet</p>
+          ) : (
+            <div className="flex items-center gap-4">
+              <div className="text-3xl font-display font-bold gradient-text">
+                {((overview?.avg_sentiment ?? 0) * 100).toFixed(0)}%
               </div>
-              <p className="text-xs text-nexus-muted mt-1">
-                {(overview?.avg_sentiment || 0.65) >= 0 ? 'Overall positive' : 'Overall negative'} sentiment
-              </p>
+              <div className="flex-1">
+                <div className="h-2 bg-nexus-bg rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${Math.max(4, Math.abs(overview?.avg_sentiment ?? 0) * 100)}%`,
+                      background: (overview?.avg_sentiment ?? 0) >= 0
+                        ? 'linear-gradient(90deg, #10b981, #22d3ee)'
+                        : 'linear-gradient(90deg, #ef4444, #f59e0b)',
+                    }}
+                  />
+                </div>
+                <p className="text-xs text-nexus-muted mt-1">
+                  {(overview?.avg_sentiment ?? 0) > 0.05
+                    ? 'Overall positive'
+                    : (overview?.avg_sentiment ?? 0) < -0.05
+                      ? 'Overall negative'
+                      : 'Overall neutral'}{' '}
+                  sentiment
+                </p>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6 mt-6">
         <div className="nexus-panel p-5 flex flex-col">
-          <div className="flex items-center gap-2 mb-6">
-            <BarChart2 className="w-4 h-4 text-nexus-accent-light" />
-            <h3 className="font-semibold text-sm">Activity Timeline</h3>
+          <div className="flex items-center justify-between gap-2 mb-6">
+            <div className="flex items-center gap-2">
+              <BarChart2 className="w-4 h-4 text-nexus-accent-light" />
+              <h3 className="font-semibold text-sm">Activity Timeline</h3>
+            </div>
+            <RangeSelect value={range} onChange={setRange} />
           </div>
-          <div className="flex-1 min-h-[200px]">
+          <div className="flex-1 min-h-[200px] relative">
+            {!hasActivity && (
+              <div className="absolute inset-0 flex items-center justify-center text-sm text-nexus-muted pointer-events-none z-10">
+                No queries in the {RANGE_LABELS[range].toLowerCase()}
+              </div>
+            )}
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={activityData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorQueries" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                    <stop offset="5%" stopColor={chartColors.accent} stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor={chartColors.accent} stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <XAxis dataKey="name" stroke="#475569" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="#475569" fontSize={12} tickLine={false} axisLine={false} />
-                <RechartsTooltip 
-                  contentStyle={{ backgroundColor: '#1a1a26', border: '1px solid #2a2a3a', borderRadius: '8px' }}
-                  itemStyle={{ color: '#e2e8f0' }}
-                />
-                <Area type="monotone" dataKey="queries" stroke="#6366f1" fillOpacity={1} fill="url(#colorQueries)" />
+                <XAxis dataKey="name" stroke={chartColors.axis} fontSize={12} tickLine={false} axisLine={false} minTickGap={16} />
+                <YAxis stroke={chartColors.axis} fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
+                <RechartsTooltip {...tooltipStyle} />
+                <Area type="monotone" dataKey="queries" name="Queries" stroke={chartColors.accent} strokeWidth={2} fillOpacity={1} fill="url(#colorQueries)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -224,6 +236,10 @@ export default function AnalyticsPanel() {
             <h3 className="font-semibold text-sm">Document Distribution</h3>
           </div>
           <div className="flex-1 flex items-center justify-center min-h-[200px]">
+            {docTotal === 0 ? (
+              <p className="text-sm text-nexus-muted">Upload documents to see their distribution</p>
+            ) : (
+            <>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -240,10 +256,7 @@ export default function AnalyticsPanel() {
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <RechartsTooltip 
-                  contentStyle={{ backgroundColor: '#1a1a26', border: '1px solid #2a2a3a', borderRadius: '8px' }}
-                  itemStyle={{ color: '#e2e8f0' }}
-                />
+                <RechartsTooltip {...tooltipStyle} />
               </PieChart>
             </ResponsiveContainer>
             <div className="flex flex-col justify-center gap-4 ml-4">
@@ -251,10 +264,12 @@ export default function AnalyticsPanel() {
                 <div key={entry.name} className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
                   <span className="text-sm text-nexus-muted">{entry.name}</span>
-                  <span className="text-sm font-medium">{entry.value}%</span>
+                  <span className="text-sm font-medium">{Math.round((entry.value / docTotal) * 100)}%</span>
                 </div>
               ))}
             </div>
+            </>
+            )}
           </div>
         </div>
       </div>

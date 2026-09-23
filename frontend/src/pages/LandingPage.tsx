@@ -5,6 +5,7 @@ import {
   ArrowRight, Layers, Database, Cpu, Shield, Zap,
 } from 'lucide-react';
 import BrainScene from '../components/landing/BrainScene';
+import { ThemeIconToggle } from '../components/common/ThemeToggle';
 
 const features = [
   { icon: Brain, title: 'Advanced RAG Pipeline', desc: 'Multi-stage retrieval with semantic search, re-ranking, and context-aware generation.' },
@@ -43,6 +44,7 @@ export default function LandingPage() {
           <span className="font-display font-bold text-xl">NexusRAG</span>
         </div>
         <div className="flex items-center gap-6">
+          <ThemeIconToggle />
           <Link to="/about" className="text-sm font-medium text-nexus-muted hover:text-nexus-text transition-colors">
             About
           </Link>
@@ -56,6 +58,12 @@ export default function LandingPage() {
       </nav>
 
       <section className="relative z-10 flex flex-col items-center justify-center min-h-[80vh] px-8 text-center">
+        {/* Soft veil so the headline stays readable over the 3D network in both themes */}
+        <div
+          aria-hidden
+          className="absolute inset-0 -z-10 pointer-events-none"
+          style={{ background: 'radial-gradient(ellipse 45% 40% at 50% 50%, rgb(var(--nx-bg) / 0.75), transparent 70%)' }}
+        />
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}

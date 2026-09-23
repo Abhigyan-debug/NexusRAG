@@ -4,6 +4,21 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0a0a0f" />
+    <script>
+      // Apply the saved theme before first paint to avoid a dark/light flash
+      (function () {
+        var pref = 'dark';
+        try {
+          var saved = JSON.parse(localStorage.getItem('nexus-app-settings') || '{}');
+          if (saved.state && saved.state.theme) pref = saved.state.theme;
+        } catch (e) {}
+        if (pref === 'system') {
+          pref = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        }
+        document.documentElement.setAttribute('data-theme', pref);
+      })();
+    </script>
     <title>NexusRAG – AI Knowledge Operating System</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

@@ -1,8 +1,9 @@
-import { useRef, useCallback, useEffect } from 'react';
+import { useRef, useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import ForceGraph2D from 'react-force-graph-2d';
 import { Loader2, Network } from 'lucide-react';
 import { knowledgeGraphApi } from '../../lib/api';
+import { useResolvedTheme } from '../../lib/theme';
 
 const NODE_COLORS: Record<string, string> = {
   Document: '#6366f1',
@@ -17,6 +18,24 @@ const NODE_COLORS: Record<string, string> = {
 
 export default function KnowledgeGraphPanel() {
   const graphRef = useRef<any>();
+  const theme = useResolvedTheme();
+  // Canvas drawing cannot use CSS variables, so pick concrete colours per theme
+  const labelColor = theme === 'light' ? '#1e293b' : '#e2e8f0';
+  const linkColor = theme === 'light' ? 'rgba(79, 70, 229, 0.35)' : 'rgba(99, 102, 241, 0.3)';
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+
+  // Size the canvas to its container instead of the whole window
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      setSize({ width: Math.floor(width), height: Math.floor(height) });
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const { data, isLoading } = useQuery({
     queryKey: ['knowledge-graph'],
@@ -26,18 +45,24 @@ export default function KnowledgeGraphPanel() {
     },
   });
 
-  const graphData = {
-    nodes: (data?.nodes || []).map((n: { id: string; label: string; type: string }) => ({
+  // Memoized: a new object on every render would restart the force simulation
+  const graphData = useMemo(() => {
+    const nodes = (data?.nodes || []).map((n: { id: string; label: string; type: string }) => ({
       id: n.id,
       name: n.label,
       type: n.type,
-    })),
-    links: (data?.edges || []).map((e: { source: string; target: string; relationship: string }) => ({
-      source: e.source,
-      target: e.target,
-      label: e.relationship,
-    })),
-  };
+    }));
+    const ids = new Set(nodes.map((n: { id: string }) => n.id));
+    // Links pointing at missing nodes make the force graph throw, so drop them
+    const links = (data?.edges || [])
+      .filter((e: { source: string; target: string }) => ids.has(e.source) && ids.has(e.target))
+      .map((e: { source: string; target: string; relationship: string }) => ({
+        source: e.source,
+        target: e.target,
+        label: e.relationship,
+      }));
+    return { nodes, links };
+  }, [data]);
 
   useEffect(() => {
     if (graphRef.current && graphData.nodes.length) {
@@ -63,7 +88,7 @@ export default function KnowledgeGraphPanel() {
         </p>
       </div>
 
-      <div className="flex-1 relative m-4 rounded-xl border border-nexus-border bg-nexus-bg overflow-hidden">
+      <div ref={containerRef} className="flex-1 relative m-4 rounded-xl border border-nexus-border bg-nexus-bg overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
             <Loader2 className="w-6 h-6 animate-spin text-nexus-muted" />
@@ -80,11 +105,11 @@ export default function KnowledgeGraphPanel() {
             nodeLabel={nodeLabel}
             nodeColor={nodeColor}
             nodeRelSize={6}
-            linkColor={() => 'rgba(99, 102, 241, 0.3)'}
+            linkColor={() => linkColor}
             linkWidth={1}
             backgroundColor="transparent"
-            width={undefined}
-            height={undefined}
+            width={size.width || undefined}
+            height={size.height || undefined}
             nodeCanvasObject={(node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
               const label = node.name;
               const fontSize = 12 / globalScale;
@@ -96,7 +121,7 @@ export default function KnowledgeGraphPanel() {
               ctx.font = `${fontSize}px Inter, sans-serif`;
               ctx.textAlign = 'center';
               ctx.textBaseline = 'top';
-              ctx.fillStyle = '#e2e8f0';
+              ctx.fillStyle = labelColor;
               ctx.fillText(label.length > 20 ? label.slice(0, 18) + '...' : label, node.x, node.y + 8);
             }}
           />

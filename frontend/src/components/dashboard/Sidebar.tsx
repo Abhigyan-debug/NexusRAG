@@ -1,9 +1,13 @@
-import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import { authApi } from '../../lib/api';
+import { ThemeSegmented } from '../common/ThemeToggle';
 import {
   Brain, FileText, MessageSquare, Microscope, Network,
-  BarChart3, Settings, LogOut, LayoutDashboard, Box
+  BarChart3, Settings, LogOut, LayoutDashboard, Box, ShieldCheck
 } from 'lucide-react';
 import { useAuthStore, useAppStore } from "../../store";
+
+const adminNavItem = { id: 'admin', label: 'Admin', icon: ShieldCheck };
 
 const navItems = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -20,9 +24,18 @@ export default function Sidebar() {
   const setActiveSection = useAppStore((s) => s.setActiveSection);
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const navigate = useNavigate();
+
+  const handleSignOut = () => {
+    // Revoke this device's session server-side; the local sign-out does not wait for it
+    const token = useAuthStore.getState().token;
+    if (token) authApi.logout(token).catch(() => {});
+    logout();
+    navigate('/login', { replace: true });
+  };
 
   return (
-    <aside className="w-64 h-screen bg-nexus-surface border-r border-nexus-border flex flex-col shrink-0 relative z-20 shadow-[4px_0_24px_rgba(0,0,0,0.5)]">
+    <aside className="w-64 h-screen bg-nexus-surface border-r border-nexus-border flex flex-col shrink-0 relative z-20 nexus-sidebar-shadow">
       <div className="p-5 border-b border-nexus-border">
         <button 
           onClick={() => setActiveSection('overview')} 
@@ -40,14 +53,14 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 p-3 space-y-1">
-        {navItems.map((item) => (
+        {(user?.role === 'admin' ? [...navItems, adminNavItem] : navItems).map((item) => (
           <button
             key={item.id}
             onClick={() => setActiveSection(item.id)}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-300 relative overflow-hidden ${
               activeSection === item.id
-                ? 'text-white shadow-[0_4px_10px_rgba(99,102,241,0.2),inset_0_1px_1px_rgba(255,255,255,0.15)] bg-gradient-to-b from-nexus-accent/20 to-nexus-accent/5 border border-nexus-accent/30'
-                : 'text-nexus-muted hover:text-nexus-text hover:bg-white/5 hover:shadow-[0_2px_8px_rgba(0,0,0,0.3)]'
+                ? 'text-nexus-heading shadow-[0_4px_10px_rgba(99,102,241,0.2),inset_0_1px_1px_rgba(255,255,255,0.15)] bg-gradient-to-b from-nexus-accent/20 to-nexus-accent/5 border border-nexus-accent/30'
+                : 'text-nexus-muted hover:text-nexus-text hover:bg-nexus-overlay/5'
             }`}
           >
             <item.icon className="w-4 h-4" />
@@ -66,8 +79,9 @@ export default function Sidebar() {
             <p className="text-xs text-nexus-muted truncate">{user?.email}</p>
           </div>
         </div>
+        <ThemeSegmented className="mb-3" />
         <button
-          onClick={logout}
+          onClick={handleSignOut}
           className="w-full flex items-center gap-2 px-3 py-2 text-sm text-nexus-muted hover:text-red-400 transition-colors rounded-lg hover:bg-red-500/5"
         >
           <LogOut className="w-4 h-4" />

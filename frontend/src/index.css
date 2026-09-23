@@ -5,6 +5,134 @@
 @tailwind utilities;
 
 @layer base {
+  /* ---------- Theme tokens (RGB channels) ---------- */
+  :root,
+  :root[data-theme='dark'] {
+    color-scheme: dark;
+    --nx-bg: 10 10 15;
+    --nx-surface: 18 18 26;
+    --nx-panel: 26 26 38;
+    --nx-border: 42 42 58;
+    --nx-accent: 99 102 241;
+    --nx-accent-light: 129 140 248;
+    --nx-glow: 79 70 229;
+    --nx-cyan: 34 211 238;
+    --nx-purple: 168 85 247;
+    --nx-text: 226 232 240;
+    --nx-muted: 148 163 184;
+    --nx-heading: 255 255 255;
+    --nx-overlay: 255 255 255;
+
+    --nx-body-glow-1: rgba(99, 102, 241, 0.08);
+    --nx-body-glow-2: rgba(168, 85, 247, 0.06);
+    --nx-body-glow-3: rgba(34, 211, 238, 0.04);
+
+    --nx-panel-from: rgba(26, 26, 38, 0.95);
+    --nx-panel-to: rgba(18, 18, 26, 0.95);
+    --nx-panel-edge: rgba(255, 255, 255, 0.1);
+    --nx-panel-shadow:
+      inset 0 1px 1px rgba(255, 255, 255, 0.15),
+      inset 0 -1px 1px rgba(0, 0, 0, 0.3),
+      0 12px 30px -10px rgba(0, 0, 0, 0.8),
+      0 4px 10px -4px rgba(0, 0, 0, 0.5);
+    --nx-panel-shadow-hover:
+      inset 0 1px 2px rgba(255, 255, 255, 0.3),
+      inset 0 -1px 2px rgba(0, 0, 0, 0.4),
+      0 20px 40px -10px rgba(0, 0, 0, 0.9),
+      0 8px 15px -5px rgba(99, 102, 241, 0.3);
+
+    --nx-btn2-from: #2a2a3a;
+    --nx-btn2-to: #1a1a26;
+    --nx-btn2-edge: rgba(255, 255, 255, 0.1);
+    --nx-btn2-shadow:
+      inset 0 1px 1px rgba(255, 255, 255, 0.1),
+      inset 0 -1px 2px rgba(0, 0, 0, 0.4),
+      0 4px 6px rgba(0, 0, 0, 0.3);
+    --nx-btn2-shadow-hover:
+      inset 0 1px 1px rgba(255, 255, 255, 0.15),
+      inset 0 -1px 2px rgba(0, 0, 0, 0.4),
+      0 6px 10px rgba(0, 0, 0, 0.4);
+    --nx-btn2-text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
+
+    --nx-input-bg: rgba(10, 10, 15, 0.8);
+    --nx-input-edge: rgba(255, 255, 255, 0.05);
+    --nx-input-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(255, 255, 255, 0.05);
+
+    --nx-sidebar-shadow: 4px 0 24px rgba(0, 0, 0, 0.5);
+  }
+
+  :root[data-theme='light'] {
+    color-scheme: light;
+    --nx-bg: 244 245 250;
+    --nx-surface: 255 255 255;
+    --nx-panel: 255 255 255;
+    --nx-border: 226 229 239;
+    --nx-accent: 79 70 229;
+    --nx-accent-light: 67 56 202;
+    --nx-glow: 99 102 241;
+    --nx-cyan: 8 145 178;
+    --nx-purple: 147 51 234;
+    --nx-text: 30 41 59;
+    --nx-muted: 100 116 139;
+    --nx-heading: 15 23 42;
+    --nx-overlay: 15 23 42;
+
+    --nx-body-glow-1: rgba(99, 102, 241, 0.07);
+    --nx-body-glow-2: rgba(168, 85, 247, 0.05);
+    --nx-body-glow-3: rgba(34, 211, 238, 0.05);
+
+    --nx-panel-from: #ffffff;
+    --nx-panel-to: #fbfbfe;
+    --nx-panel-edge: rgba(15, 23, 42, 0.08);
+    --nx-panel-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 1),
+      0 1px 2px rgba(15, 23, 42, 0.04),
+      0 8px 24px -12px rgba(15, 23, 42, 0.12);
+    --nx-panel-shadow-hover:
+      inset 0 1px 0 rgba(255, 255, 255, 1),
+      0 2px 4px rgba(15, 23, 42, 0.04),
+      0 18px 36px -14px rgba(15, 23, 42, 0.18),
+      0 6px 16px -8px rgba(79, 70, 229, 0.22);
+
+    --nx-btn2-from: #ffffff;
+    --nx-btn2-to: #f5f6fb;
+    --nx-btn2-edge: rgba(15, 23, 42, 0.1);
+    --nx-btn2-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 1),
+      0 1px 2px rgba(15, 23, 42, 0.06),
+      0 2px 6px -2px rgba(15, 23, 42, 0.08);
+    --nx-btn2-shadow-hover:
+      inset 0 1px 0 rgba(255, 255, 255, 1),
+      0 2px 4px rgba(15, 23, 42, 0.06),
+      0 8px 16px -6px rgba(15, 23, 42, 0.14);
+    --nx-btn2-text-shadow: none;
+
+    --nx-input-bg: #ffffff;
+    --nx-input-edge: rgba(15, 23, 42, 0.12);
+    --nx-input-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.06);
+
+    --nx-sidebar-shadow: 1px 0 0 rgba(15, 23, 42, 0.02), 4px 0 24px rgba(15, 23, 42, 0.05);
+  }
+
+  /* Status colours tuned for dark backgrounds are too pale on white */
+  :root[data-theme='light'] .text-green-400 { color: #15803d; }
+  :root[data-theme='light'] .text-red-400,
+  :root[data-theme='light'] .text-red-500,
+  :root[data-theme='light'] .hover\:text-red-400:hover,
+  :root[data-theme='light'] .hover\:text-red-300:hover { color: #dc2626; }
+  :root[data-theme='light'] .text-yellow-400,
+  :root[data-theme='light'] .text-yellow-400\/80 { color: #a16207; }
+
+  /* Smooth colour cross-fade only while the theme is being switched */
+  :root.theme-transition,
+  :root.theme-transition *,
+  :root.theme-transition *::before,
+  :root.theme-transition *::after {
+    transition-property: background-color, border-color, color, fill, stroke, box-shadow !important;
+    transition-duration: 250ms !important;
+    transition-timing-function: ease !important;
+  }
+
   * {
     @apply border-nexus-border;
   }
@@ -12,10 +140,14 @@
   body {
     @apply bg-nexus-bg text-nexus-text font-sans antialiased;
     background-image:
-      radial-gradient(ellipse at 20% 50%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
-      radial-gradient(ellipse at 80% 20%, rgba(168, 85, 247, 0.06) 0%, transparent 50%),
-      radial-gradient(ellipse at 50% 80%, rgba(34, 211, 238, 0.04) 0%, transparent 50%);
+      radial-gradient(ellipse at 20% 50%, var(--nx-body-glow-1) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, var(--nx-body-glow-2) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 80%, var(--nx-body-glow-3) 0%, transparent 50%);
     min-height: 100vh;
+  }
+
+  ::selection {
+    background: rgb(var(--nx-accent) / 0.3);
   }
 
   ::-webkit-scrollbar {
@@ -38,31 +170,35 @@
 
 @layer components {
   .nexus-panel {
-    @apply rounded-xl border border-white/10 relative overflow-hidden duration-500 ease-out;
+    @apply rounded-xl border relative overflow-hidden duration-500 ease-out;
     transition-property: transform, box-shadow, border-color;
-    background: linear-gradient(145deg, rgba(26, 26, 38, 0.95) 0%, rgba(18, 18, 26, 0.95) 100%);
-    box-shadow: 
-      inset 0 1px 1px rgba(255, 255, 255, 0.15),
-      inset 0 -1px 1px rgba(0, 0, 0, 0.3),
-      0 12px 30px -10px rgba(0, 0, 0, 0.8),
-      0 4px 10px -4px rgba(0, 0, 0, 0.5);
+    border-color: var(--nx-panel-edge);
+    background: linear-gradient(145deg, var(--nx-panel-from) 0%, var(--nx-panel-to) 100%);
+    box-shadow: var(--nx-panel-shadow);
     transform-style: preserve-3d;
   }
 
   .nexus-panel:hover {
     transform: translateY(-4px) scale(1.01) perspective(1000px) rotateX(1deg);
-    box-shadow: 
-      inset 0 1px 2px rgba(255, 255, 255, 0.3),
-      inset 0 -1px 2px rgba(0, 0, 0, 0.4),
-      0 20px 40px -10px rgba(0, 0, 0, 0.9),
-      0 8px 15px -5px rgba(99, 102, 241, 0.3);
-    border-color: rgba(99, 102, 241, 0.3);
+    box-shadow: var(--nx-panel-shadow-hover);
+    border-color: rgb(var(--nx-accent) / 0.3);
+  }
+
+  /* Panels that hold forms or lists should not jump around under the cursor */
+  .nexus-panel.nexus-panel-static:hover {
+    transform: none;
+    box-shadow: var(--nx-panel-shadow);
+    border-color: var(--nx-panel-edge);
+  }
+
+  .nexus-sidebar-shadow {
+    box-shadow: var(--nx-sidebar-shadow);
   }
 
   .nexus-btn-primary {
     @apply px-6 py-2.5 font-medium rounded-lg text-white transition-all duration-300 relative overflow-hidden;
     background: linear-gradient(180deg, #818cf8 0%, #6366f1 50%, #4f46e5 100%);
-    box-shadow: 
+    box-shadow:
       inset 0 1px 2px rgba(255, 255, 255, 0.4),
       inset 0 -2px 4px rgba(0, 0, 0, 0.3),
       0 4px 12px rgba(99, 102, 241, 0.4),
@@ -73,7 +209,7 @@
 
   .nexus-btn-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 
+    box-shadow:
       inset 0 1px 2px rgba(255, 255, 255, 0.5),
       inset 0 -2px 4px rgba(0, 0, 0, 0.3),
       0 8px 16px rgba(99, 102, 241, 0.5),
@@ -83,56 +219,73 @@
 
   .nexus-btn-primary:active {
     transform: translateY(1px);
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(0, 0, 0, 0.4),
       0 1px 2px rgba(99, 102, 241, 0.2);
   }
 
+  :root[data-theme='light'] .nexus-btn-primary {
+    box-shadow:
+      inset 0 1px 1px rgba(255, 255, 255, 0.35),
+      inset 0 -2px 3px rgba(0, 0, 0, 0.15),
+      0 4px 12px rgba(79, 70, 229, 0.28),
+      0 1px 2px rgba(15, 23, 42, 0.12);
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+  }
+
+  :root[data-theme='light'] .nexus-btn-primary:hover {
+    box-shadow:
+      inset 0 1px 1px rgba(255, 255, 255, 0.4),
+      inset 0 -2px 3px rgba(0, 0, 0, 0.15),
+      0 8px 18px rgba(79, 70, 229, 0.32),
+      0 2px 4px rgba(15, 23, 42, 0.12);
+  }
+
+  .nexus-btn-primary:disabled,
+  .nexus-btn-secondary:disabled {
+    @apply opacity-50 cursor-not-allowed;
+    transform: none;
+    filter: none;
+  }
+
   .nexus-btn-secondary {
     @apply px-6 py-2.5 text-nexus-text font-medium rounded-lg transition-all duration-300;
-    background: linear-gradient(180deg, #2a2a3a 0%, #1a1a26 100%);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 
-      inset 0 1px 1px rgba(255, 255, 255, 0.1),
-      inset 0 -1px 2px rgba(0, 0, 0, 0.4),
-      0 4px 6px rgba(0, 0, 0, 0.3);
-    text-shadow: 0 1px 1px rgba(0,0,0,0.5);
+    background: linear-gradient(180deg, var(--nx-btn2-from) 0%, var(--nx-btn2-to) 100%);
+    border: 1px solid var(--nx-btn2-edge);
+    box-shadow: var(--nx-btn2-shadow);
+    text-shadow: var(--nx-btn2-text-shadow);
   }
 
   .nexus-btn-secondary:hover {
     transform: translateY(-2px);
-    box-shadow: 
-      inset 0 1px 1px rgba(255, 255, 255, 0.15),
-      inset 0 -1px 2px rgba(0, 0, 0, 0.4),
-      0 6px 10px rgba(0, 0, 0, 0.4);
-    border-color: rgba(99, 102, 241, 0.4);
+    box-shadow: var(--nx-btn2-shadow-hover);
+    border-color: rgb(var(--nx-accent) / 0.4);
   }
 
   .nexus-btn-secondary:active {
     transform: translateY(1px);
-    box-shadow: 
-      inset 0 2px 4px rgba(0, 0, 0, 0.5);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15);
   }
 
   .nexus-input {
-    @apply w-full px-4 py-3 rounded-lg text-nexus-text placeholder-nexus-muted 
+    @apply w-full px-4 py-3 rounded-lg text-nexus-text placeholder-nexus-muted
            focus:outline-none transition-all duration-300;
-    background: rgba(10, 10, 15, 0.8);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    box-shadow: 
-      inset 0 2px 5px rgba(0, 0, 0, 0.5),
-      0 1px 0 rgba(255, 255, 255, 0.05);
+    background: var(--nx-input-bg);
+    border: 1px solid var(--nx-input-edge);
+    box-shadow: var(--nx-input-shadow);
   }
 
   .nexus-input:focus {
-    border-color: rgba(99, 102, 241, 0.6);
-    box-shadow: 
-      inset 0 2px 5px rgba(0, 0, 0, 0.5),
-      0 0 0 2px rgba(99, 102, 241, 0.2),
-      0 1px 0 rgba(255, 255, 255, 0.05);
+    border-color: rgb(var(--nx-accent) / 0.6);
+    box-shadow: var(--nx-input-shadow), 0 0 0 3px rgb(var(--nx-accent) / 0.18);
   }
 
   .gradient-text {
     @apply bg-nexus-gradient bg-clip-text text-transparent drop-shadow-lg;
+  }
+
+  :root[data-theme='light'] .gradient-text {
+    filter: none;
+    background-image: linear-gradient(135deg, #4f46e5 0%, #9333ea 50%, #0891b2 100%);
   }
 }
