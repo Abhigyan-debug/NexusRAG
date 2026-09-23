@@ -2,8 +2,13 @@ import axios from 'axios';
 import { useAuthStore } from '../store';
 import type { AnalyticsRange } from '../types';
 
-// Override with VITE_API_URL (e.g. http://localhost:5000/api) for local development
-const API_BASE = import.meta.env.VITE_API_URL || 'https://nexusrag-qk61.onrender.com/api';
+// Override with VITE_API_URL (e.g. http://localhost:5000/api) for local development.
+// The "/api" suffix is added if missing, since every backend route lives under it.
+function resolveApiBase(url: string) {
+  const trimmed = url.trim().replace(/\/+$/, '');
+  return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
+}
+const API_BASE = resolveApiBase(import.meta.env.VITE_API_URL || 'https://nexusrag-qk61.onrender.com/api');
 
 const api = axios.create({
   baseURL: API_BASE,
